@@ -1,9 +1,7 @@
 import backtrader as bt
 from config import *
 from logger_config import engine_logger
-from data.data_feed import AStockDataLoader
-from strategies.sma_strategy import SMAStrategy
-from utils.analyzer import add_analyzers
+from data.data_feed import AStockDataLoader, MultiStockDataLoader
 import importlib
 
 class BacktestEngine:
@@ -11,6 +9,7 @@ class BacktestEngine:
         self.cerebro = bt.Cerebro()
         self.results = None
         self.logger = engine_logger
+        self.data_loader = None
         
     def setup_broker(self):
         """设置经纪人参数"""
@@ -18,20 +17,53 @@ class BacktestEngine:
         self.cerebro.broker.setcash(INITIAL_CASH)
         self.cerebro.broker.setcommission(commission=COMMISSION)
         if SLIPPAGE > 0:
-            self.cerebro.broker.set_slippage_perc(SLIPPAGE)
+            self.cerebro.broker.set_slippage_fixed(SLIPPAGE)  # 注意：这里修正了API调用
             
     def load_data(self):
         """加载数据"""
-        self.logger.info(f"正在加载数据: {DATA_PATH}")
+        self.logger.info(f"数据模式: {BACKTEST_MODE}")
+        
+        if BACKTEST_MODE == "single":
+            self._load_single_stock()
+        elif BACKTEST_MODE == "multi":
+            self._load_multi_stock()
+        else:
+            raise ValueError(f"未知的回测模式: {BACKTEST_MODE}")
+            
+    def _load_single_stock(self):
+        """加载单个股票数据"""
+        file_path = os.path.join(DATA_DIR, f"{SINGLE_STOCK}.csv")
+        self.logger.info(f"正在加载单个股票数据: {file_path}")
+        
         try:
-            df = AStockDataLoader.load_csv_data(DATA_PATH, START_DATE, END_DATE)
+            df = AStockDataLoader.load_single_csv(file_path, START_DATE, END_DATE)
             self.logger.info(f"数据加载完成，共{len(df)}条记录")
             
-            data_feed = AStockDataLoader.create_data_feed(df)
+            data_feed = AStockDataLoader.create_data_feed(df, SINGLE_STOCK)
             self.cerebro.adddata(data_feed)
             self.logger.info("数据添加到引擎成功")
         except Exception as e:
-            self.logger.error(f"数据加载失败: {e}")
+            self.logger.error(f"单个股票数据加载失败: {e}")
+            raise
+            
+    def _load_multi_stock(self):
+        """加载多个股票数据"""
+        self.logger.info(f"正在加载多个股票数据从目录: {DATA_DIR}")
+        
+        try:
+            self.data_loader = MultiStockDataLoader(DATA_DIR)
+            self.data_loader.load_data(STOCK_LIST, START_DATE, END_DATE)
+            
+            # 添加所有数据到引擎
+            data_feeds = self.data_loader.get_all_data_feeds()
+            for stock_code, data_feed in data_feeds.items():
+                self.cerebro.adddata(data_feed)
+                self.logger.info(f"已添加股票数据: {stock_code}")
+                
+            self.logger.info(f"总共添加了 {len(data_feeds)} 只股票的数据")
+            
+        except Exception as e:
+            self.logger.error(f"多股票数据加载失败: {e}")
             raise
             
     def add_strategy(self):
@@ -39,7 +71,8 @@ class BacktestEngine:
         self.logger.info(f"添加策略: {STRATEGY_NAME}")
         try:
             # 动态导入策略类
-            strategy_module = importlib.import_module(f"strategies.{STRATEGY_NAME.lower()}")
+            module_name = f"strategies.{STRATEGY_NAME.lower()}"
+            strategy_module = importlib.import_module(module_name)
             strategy_class = getattr(strategy_module, STRATEGY_NAME)
             
             self.cerebro.addstrategy(strategy_class, **STRATEGY_PARAMS)
@@ -54,6 +87,7 @@ class BacktestEngine:
         self.logger.info(f'初始资金: {self.cerebro.broker.getvalue():.2f}')
         
         # 添加分析器
+        from utils.analyzer import add_analyzers
         add_analyzers(self.cerebro)
         
         # 运行回测

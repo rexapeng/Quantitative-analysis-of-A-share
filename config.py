@@ -2,15 +2,20 @@ import os
 from datetime import datetime
 
 # 数据配置
-DATA_PATH = "your_stock_data.csv"  # 您的A股数据文件路径
-START_DATE = "2014-01-01"
-END_DATE = "2024-01-01"
+DATA_DIR = "stock_data"  # 存放股票CSV文件的目录
+STOCK_LIST = None  # 股票列表，如 ['sh.600999', 'sz.000001']，None表示所有股票
+SINGLE_STOCK = "sh.600999"  # 单个股票回测时使用的股票代码
 
 # 回测配置
+START_DATE = "2014-01-01"
+END_DATE = "2024-01-01"
 INITIAL_CASH = 100000.0
 COMMISSION = 0.001  # 0.1%手续费
 STAKE = 100  # 每次交易股数
 SLIPPAGE = 0.0  # 滑点
+
+# 回测模式
+BACKTEST_MODE = "single"  # single 或 multi
 
 # 策略配置
 STRATEGY_NAME = "SMAStrategy"
@@ -38,3 +43,4 @@ TIMESTAMP = datetime.now().strftime("%Y%m%d_%H%M%S")
 # 创建输出目录
 os.makedirs(RESULT_DIR, exist_ok=True)
 os.makedirs(LOG_DIR, exist_ok=True)
+os.makedirs(DATA_DIR, exist_ok=True)
