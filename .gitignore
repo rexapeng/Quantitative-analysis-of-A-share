@@ -142,6 +142,7 @@ Thumbs.db
 # Ignore raw and processed data files/directories
 /data/raw/
 /data/processed/
+/log
 
 # Ignore generated reports/charts if saved automatically and you don't want them tracked
 /reports/
