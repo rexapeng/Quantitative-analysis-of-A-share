@@ -24,23 +24,23 @@ STOCK_SCOPE = "all"#可选值: "all", "hs300", "sz50"
 SHOW_NO_DATA_STOCKS = True
 
 # 时间范围设置（修改为合理的历史日期范围）
-START_DATE = "2023-01-01"  # 开始日期
-END_DATE = datetime.now().strftime('%Y-%m-%d')    # 结束日期设为昨天
+START_DATE = "2025-01-01"  # 开始日期
+END_DATE = "2025-12-03"    # 结束日期设为昨天
 
 # 请求间隔（秒）
 REQUEST_DELAY = 0.1
 
 # 获取字段
-FIELDS = "date,code,open,high,low,close,preclose,volume,amount,adjustflag,turn,tradestatus,pctChg,isST"
+FIELDS = "date,code,open,high,low,close,preclose,volume,amount,adjustflag,turn,tradestatus,isST"
 
 # 重试轮数
 MAX_RETRIES = 100
 
 # 并发进程数
-NUM_PROCESSES = 20
+NUM_PROCESSES = 50
 
 # 重试时的并发进程数
-RETRY_NUM_PROCESSES = 20
+RETRY_NUM_PROCESSES = 50
 
 # 登录重试延迟（秒）
 LOGIN_RETRY_DELAY = 0.1
@@ -57,6 +57,9 @@ PROGRESS_UPDATE_INTERVAL = 0.1
 # 日志配置
 ENABLE_BAOSTOCK_LOG_REDIRECT = True
 LOG_DIR = "./log"
+
+# 复权类型: 1-后复权, 2-前复权, 3-不复权
+ADJUST_FLAG = "1"  # 默认为后复权
 
 # ===============================================
 
@@ -328,7 +331,7 @@ def get_stock_history_once(stock_code, stock_name, start_date, end_date, log_fil
                 start_date=start_date,
                 end_date=end_date,
                 frequency="d",
-                adjustflag="1"# 后复权
+                adjustflag=ADJUST_FLAG  # 使用配置的复权类型
             )
             
             # 记录详细的查询状态
@@ -345,6 +348,20 @@ def get_stock_history_once(stock_code, stock_name, start_date, end_date, log_fil
                 
                 if data_list:
                     result = pd.DataFrame(data_list, columns=rs.fields)
+                    
+                    # 如果是复权数据，重新计算涨跌幅
+                    if ADJUST_FLAG in ["1", "2"] and not result.empty:
+                        # 将数值列转换为float类型
+                        for col in ['open', 'high', 'low', 'close', 'preclose']:
+                            if col in result.columns:
+                                result[col] = pd.to_numeric(result[col], errors='coerce')
+                        
+                        # 重新计算涨跌幅: (收盘价 - 前收盘价) / 前收盘价 * 100
+                        result['pctChg'] = (result['close'] - result['preclose']) / result['preclose'] * 100
+                        # 处理可能的无穷大或NaN值
+                        result['pctChg'] = result['pctChg'].replace([float('inf'), -float('inf')], 0)
+                        result['pctChg'] = result['pctChg'].fillna(0)
+                    
                     try:
                         bs.logout()
                     except:
