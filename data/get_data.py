@@ -13,9 +13,14 @@ from multiprocessing import Manager
 import io
 import contextlib
 
+# 导入项目配置
+import sys
+sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/..')
+from config import DATA_DIR as PROJECT_DATA_DIR, LOG_DIR as PROJECT_LOG_DIR, RAW_DATA_DIR
+
 # ==================== 配置项 ====================
 # 数据存储目录
-DATA_DIR = "./data/raw"
+DATA_DIR = RAW_DATA_DIR
 
 # 可选的数据范围: "all"(全部A股), "hs300"(沪深300成分股), "sz50"(上证50成分股)
 STOCK_SCOPE = "all"#可选值: "all", "hs300", "sz50"
@@ -23,8 +28,8 @@ STOCK_SCOPE = "all"#可选值: "all", "hs300", "sz50"
 # 是否在保存阶段显示无有效数据的股票信息
 SHOW_NO_DATA_STOCKS = True
 
-# 时间范围设置（修改为合理的历史日期范围）
-START_DATE = "2025-01-01"  # 开始日期
+# 时间范围设置（获取足够的历史数据用于指标计算）
+START_DATE = "2024-01-01"  # 开始日期，确保至少有150个交易日的历史数据
 END_DATE = "2025-12-03"    # 结束日期设为昨天
 
 # 请求间隔（秒）
@@ -56,7 +61,7 @@ PROGRESS_UPDATE_INTERVAL = 0.1
 
 # 日志配置
 ENABLE_BAOSTOCK_LOG_REDIRECT = True
-LOG_DIR = "./log"
+LOG_DIR = PROJECT_LOG_DIR
 
 # 复权类型: 1-后复权, 2-前复权, 3-不复权
 ADJUST_FLAG = "1"  # 默认为后复权

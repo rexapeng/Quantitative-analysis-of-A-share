@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use('Agg')  # 使用非交互式后端
 import matplotlib.pyplot as plt
 import os
 from config import RESULT_DIR, TIMESTAMP, PLOT_SAVE_FORMAT, PLOT_WIDTH, PLOT_HEIGHT, PLOT_STYLE
@@ -19,8 +21,16 @@ class Plotter:
             if not hasattr(self.cerebro, '_exactbars'):
                 self.cerebro._exactbars = 0
             
-            # 设置图形大小
-            figs = self.cerebro.plot()
+            # 以非交互式方式绘制图表，设置图形大小参数
+            figs = self.cerebro.plot(
+                style='candlestick',
+                volume=True,
+                width=PLOT_WIDTH,
+                height=PLOT_HEIGHT,
+                dpi=300,
+                tight_layout=True,
+                show=False  # 不显示图形，只生成
+            )
             
             # 保存图表
             for i, fig_list in enumerate(figs):
@@ -29,7 +39,7 @@ class Plotter:
                         RESULT_DIR, 
                         f"backtest_plot_{TIMESTAMP}_{i}_{j}.{PLOT_SAVE_FORMAT}"
                     )
-                    fig.set_size_inches(PLOT_WIDTH, PLOT_HEIGHT)
+                    # 直接保存，不需要再设置大小
                     fig.savefig(filename, dpi=300, bbox_inches='tight')
                     self.logger.info(f"图表已保存: {filename}")
                     
@@ -38,4 +48,6 @@ class Plotter:
             
         except Exception as e:
             self.logger.error(f"图表绘制失败: {e}")
-            raise
+            # 不抛出异常，让程序继续执行
+            return False
+        return True

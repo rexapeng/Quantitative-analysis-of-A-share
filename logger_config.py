@@ -25,7 +25,8 @@ def setup_logger(name, log_file, level=logging.INFO):
     file_handler = RotatingFileHandler(
         os.path.join(LOG_DIR, log_file),
         maxBytes=10*1024*1024,  # 10MB
-        backupCount=5
+        backupCount=5,
+        encoding='utf-8'  # 设置UTF-8编码
     )
     file_handler.setFormatter(formatter)
     

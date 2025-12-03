@@ -8,7 +8,7 @@ from engine.backtest_engine import BacktestEngine
 from engine.report_generator import ReportGenerator
 from utils.plotter import Plotter
 from logger_config import main_logger
-from config import PLOT_ENABLE, BACKTEST_CONFIG, SMA_CONFIG, RSI_SMA_CONFIG
+from config import PLOT_ENABLE, BACKTEST_CONFIG, SMA_CONFIG, RSI_SMA_CONFIG, STOCK_SELECTION_CONFIG, RESULT_DIR
 
 def main():
     """主程序入口"""
@@ -22,6 +22,8 @@ def main():
         # 获取对应的策略配置
         if strategy_name == 'rsi_sma':
             strategy_params = RSI_SMA_CONFIG
+        elif strategy_name == 'stock_selection':
+            strategy_params = STOCK_SELECTION_CONFIG
         else:
             strategy_params = SMA_CONFIG
         
@@ -44,7 +46,7 @@ def main():
         print("\n=== 回测完成 ===")
         print(f"最终资金: ¥{summary['final_value']:,.2f}")
         print(f"总收益率: {summary['total_return_pct']:.2f}%")
-        print(f"详细报告已保存至: results/")
+        print(f"详细报告已保存至: {RESULT_DIR}/")
         
     except Exception as e:
         print(f"回测过程中发生错误: {str(e)}")

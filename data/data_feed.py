@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import datetime
 import os
 from logger_config import data_logger
+from tqdm import tqdm
 # 新增导入config模块以获取清洗后数据目录
 from config import CLEANED_DATA_DIR
 
@@ -20,12 +21,14 @@ class AStockDataLoader:
         Returns:
             pd.DataFrame: 处理后的数据
         """
-        data_logger.info(f"加载数据文件: {file_path}")
+        # 注释掉加载数据文件的日志，避免过多打印
+        # data_logger.info(f"加载数据文件: {file_path}")
         
         try:
             # 读取CSV文件
             df = pd.read_csv(file_path)
-            data_logger.info(f"原始数据形状: {df.shape}")
+            # 注释掉原始数据形状日志
+            # data_logger.info(f"原始数据形状: {df.shape}")
             
             # 检查必要的列是否存在
             required_columns = ['date', 'open', 'high', 'low', 'close', 'volume']
@@ -51,7 +54,8 @@ class AStockDataLoader:
             # 删除包含NaN的行
             df.dropna(inplace=True)
             
-            data_logger.info(f"处理后数据形状: {df.shape}")
+            # 注释掉处理后数据形状日志
+            # data_logger.info(f"处理后数据形状: {df.shape}")
             return df
             
         except Exception as e:
@@ -84,7 +88,8 @@ class AStockDataLoader:
         
         data_logger.info(f"找到 {len(csv_files)} 个CSV文件")
         
-        for csv_file in csv_files:
+        # 使用tqdm显示加载进度
+        for csv_file in tqdm(csv_files, desc="加载股票数据", unit="只"):
             try:
                 file_path = os.path.join(data_dir, csv_file)
                 # 修改：提取股票代码的方式适配新命名规则
@@ -92,7 +97,7 @@ class AStockDataLoader:
                 
                 df = AStockDataLoader.load_single_csv(file_path, start_date, end_date)
                 stock_data[stock_code] = df
-                data_logger.info(f"成功加载 {stock_code} 数据，共 {len(df)} 条记录")
+                data_logger.debug(f"成功加载 {stock_code} 数据，共 {len(df)} 条记录")
                 
             except Exception as e:
                 data_logger.warning(f"跳过文件 {csv_file}: {e}")

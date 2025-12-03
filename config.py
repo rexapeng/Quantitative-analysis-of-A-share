@@ -17,12 +17,12 @@ RESULT_DIR = os.path.join(OUTPUT_DIR, 'reports')
 
 # 回测配置
 BACKTEST_CONFIG = {
-    'start_date': '2025-01-01',     # 回测开始日期
+    'start_date': '2025-10-01',     # 回测开始日期
     'end_date': '2025-12-03',       # 回测结束日期
-    'symbols': ["sh.600999"],                  # 交易标的列表，空列表表示所有标的
+    'symbols': [],       # 交易标的列表，空列表表示所有标的
                                    # 标的格式示例: ['sh.600999', 'sz.000001', 'sh.600000']
                                    # 其中 sh 表示上海证券交易所，sz 表示深圳证券交易所
-    'strategy': 'rsi_sma',  # 策略名称：'sma' 或 'rsi_sma'
+    'strategy': 'stock_selection',  # 策略名称：'sma'、'rsi_sma' 或 'stock_selection'
 }
 
 # 策略配置
@@ -45,13 +45,20 @@ RSI_SMA_CONFIG = {
     'risk_per_trade': 0.02,
 }
 
+# 选股策略配置
+STOCK_SELECTION_CONFIG = {
+    'hold_days': 10,          # 固定持仓天数
+    'top_stocks_count': 5,    # 买入前N只股票
+    'min_score': 50,          # 最低评分要求
+}
+
 # 经纪商配置
 INITIAL_CASH = 100000              # 初始资金
 COMMISSION_RATE = 0.00025            # 手续费率(0.025%)
 STAMP_DUTY_RATE = 0.001             # 印花税率(0.1%)
 
 # 添加缺失的配置项
-RESULT_DIR = 'results'        # 结果保存目录
+# RESULT_DIR 已在顶部定义为 os.path.join(OUTPUT_DIR, 'reports')
 TIMESTAMP = datetime.now().strftime('%Y%m%d_%H%M%S')  # 时间戳
 REPORT_FORMAT = 'pdf'         # 报告格式
 
@@ -65,7 +72,7 @@ PLOT_WIDTH = 12               # 图表宽度(inches)
 PLOT_HEIGHT = 8               # 图表高度(inches)
 # 修改图表样式为有效的matplotlib样式名称
 PLOT_STYLE = 'seaborn-v0_8'   # 图表样式(seaborn更新后的正确样式名称)
-PLOT_ENABLE = False            # 是否启用图表绘制功能
+PLOT_ENABLE = True            # 是否启用图表绘制功能
 
 # 确保必要的目录存在
 os.makedirs(OUTPUT_DIR, exist_ok=True)

@@ -1,1 +1,23 @@
 项目的Python依赖库说明
+
+# 数据分析和量化交易
+backtrader
+pandas
+numpy
+matplotlib
+seaborn
+scipy
+
+# 数据获取和处理
+baostock
+requests
+
+# 进度条
+ tqdm
+
+# 日志和配置
+logging
+
+# 其他
+click
+colorama

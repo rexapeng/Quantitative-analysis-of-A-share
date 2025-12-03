@@ -1,15 +1,47 @@
 #基础策略模版
 import backtrader as bt
-
+from tqdm import tqdm
+import sys
 
 class BaseStrategy(bt.Strategy):
     """基础策略类"""
     
+    params = (
+        ('stake', 100),  # 交易数量
+    )
+    
     def __init__(self):
-        pass
+        """初始化策略"""
+        # 初始化进度条相关变量
+        self.pbar = None
+        self.total_bars = 0
+        self.current_bar = 0
+        
+        # 计算总周期数
+        if self.datas:
+            self.total_bars = len(self.datas[0])
+            # 初始化进度条，使用file=sys.stdout确保在终端中显示
+            if self.total_bars > 0:
+                self.pbar = tqdm(
+                    total=self.total_bars, 
+                    desc="回测进度", 
+                    leave=True,
+                    file=sys.stdout,
+                    dynamic_ncols=True
+                )
+        
+        # 初始化策略变量
+        self.data_close = self.datas[0].close
+        self.order = None
+        self.buy_price = None
+        self.buy_comm = None
         
     def next(self):
-        pass
+        # 更新进度条
+        if self.pbar:
+            self.current_bar += 1
+            self.pbar.update(1)
+            self.pbar.set_postfix_str(f"完成 {self.current_bar}/{self.total_bars}")
         
     def buy_signal(self):
         """买入信号"""
@@ -19,21 +51,10 @@ class BaseStrategy(bt.Strategy):
         """卖出信号"""
         return False
         
-    params = (
-        ('stake', 100),  # 交易数量
-    )
-    
     def log(self, txt, dt=None):
         """记录日志"""
         dt = dt or self.datas[0].datetime.date(0)
         print(f'{dt.isoformat()} {txt}')
-        
-    def __init__(self):
-        """初始化策略"""
-        self.data_close = self.datas[0].close
-        self.order = None
-        self.buy_price = None
-        self.buy_comm = None
         
     def notify_order(self, order):
         """订单状态通知"""
@@ -75,3 +96,6 @@ class BaseStrategy(bt.Strategy):
     def stop(self):
         """策略结束"""
         self.log('策略结束')
+        # 关闭进度条
+        if self.pbar:
+            self.pbar.close()

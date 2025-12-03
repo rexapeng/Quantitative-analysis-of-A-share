@@ -9,21 +9,18 @@ import multiprocessing as mp
 from tqdm import tqdm
 warnings.filterwarnings('ignore')
 
-# 修改导入方式，避免模块导入错误
+# 导入项目配置
+sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/..')
 try:
-    # 尝试相对导入
-    from .get_data import DATA_DIR as RAW_DATA_DIR
-except (ImportError, ValueError):
-    try:
-        # 如果相对导入失败，尝试直接导入
-        import get_data
-        RAW_DATA_DIR = get_data.DATA_DIR
-    except ImportError:
-        # 如果都失败，使用默认路径
-        RAW_DATA_DIR = "./data/raw"
+    from config import RAW_DATA_DIR, PROCESSED_DATA_DIR, LOG_DIR
+except ImportError:
+    # 如果配置文件导入失败，使用默认路径
+    RAW_DATA_DIR = "./data/raw"
+    PROCESSED_DATA_DIR = "./data/processed"
+    LOG_DIR = "./log"
 
 class DataCleaner:
-    def __init__(self, raw_data_path=RAW_DATA_DIR, cleaned_data_path='./data/processed'):
+    def __init__(self, raw_data_path=RAW_DATA_DIR, cleaned_data_path=PROCESSED_DATA_DIR):
         """
         初始化数据清洗器
         
@@ -35,8 +32,8 @@ class DataCleaner:
         self.cleaned_data_path = Path(cleaned_data_path)
         self.cleaned_data_path.mkdir(parents=True, exist_ok=True)
         
-        # 创建log目录
-        self.log_path = Path('./log')
+        # 创建log目录（使用项目统一的LOG_DIR）
+        self.log_path = Path(LOG_DIR)
         self.log_path.mkdir(parents=True, exist_ok=True)
         
         # 数据质量报告

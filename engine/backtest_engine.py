@@ -4,6 +4,7 @@ import pandas as pd
 from data.data_feed import MultiStockDataLoader
 from strategies.sma_strategy import SMAStrategy
 from strategies.rsi_sma_strategy import RSIStrategy
+from strategies.stock_selection_strategy import StockSelectionStrategy
 from utils.analyzer import add_analyzers
 from logger_config import engine_logger
 # 导入新增的配置项
@@ -53,6 +54,7 @@ class BacktestEngine:
         strategy_map = {
             'sma': SMAStrategy,
             'rsi_sma': RSIStrategy,
+            'stock_selection': StockSelectionStrategy,
         }
         
         strategy_class = strategy_map.get(strategy_name, SMAStrategy)
@@ -83,6 +85,7 @@ class BacktestEngine:
         self.setup_analyzers()
         
         # 运行回测
+        self.logger.info("开始运行回测...")
         results = self.cerebro.run()
         
         self.logger.info("回测执行完成")
