@@ -1,49 +1,92 @@
 import os
 from datetime import datetime
 
-# 数据配置
-# 修改：将DATA_DIR指向清洗后的数据目录
-DATA_DIR = "data/processed"  # 存放股票CSV文件的目录
-STOCK_LIST = None  # 股票列表，如 ['sh.600999', 'sz.000001']，None表示所有股票
-# 修改：更新单个股票的文件名格式
-SINGLE_STOCK = "sh.600999_(20140101)"  # 单个股票回测时使用的股票代码（示例）
-
-# 回测配置
-START_DATE = "2014-01-01"
-END_DATE = "2024-01-01"
-INITIAL_CASH = 100000.0
-COMMISSION = 0.001  # 0.1%手续费
-STAKE = 100  # 每次交易股数
-SLIPPAGE = 0.0  # 滑点
-
-# 回测模式
-BACKTEST_MODE = "single"  # single 或 multi
-
-# 策略配置
-STRATEGY_NAME = "SMAStrategy"
-STRATEGY_PARAMS = {
-    'short_period': 10,
-    'long_period': 30,
-    'stake': 100
+# 数据库配置
+DB_CONFIG = {
+    'host': 'localhost',
+    'port': 3306,
+    'user': 'root',
+    'password': '123456',
+    'database': 'stock_data'
 }
 
-# 输出配置
-RESULT_DIR = "results"
-LOG_DIR = "logs"
-REPORT_FORMAT = "html"  # html, pdf, json
+# 日志配置
+LOG_DIR = 'logs'
+
+# 回测配置
+BACKTEST_CONFIG = {
+    'start_date': '2025-01-01',     # 回测开始日期
+    'end_date': '2025-12-03',       # 回测结束日期
+    'symbols': ["sh.600999"],                  # 交易标的列表，空列表表示所有标的
+                                   # 标的格式示例: ['sh.600999', 'sz.000001', 'sh.600000']
+                                   # 其中 sh 表示上海证券交易所，sz 表示深圳证券交易所
+}
+
+# 经纪商配置
+INITIAL_CASH = 100000              # 初始资金
+COMMISSION_RATE = 0.00025            # 手续费率(0.025%)
+STAMP_DUTY_RATE = 0.001             # 印花税率(0.1%)
+
+# 添加缺失的配置项
+RESULT_DIR = 'results'        # 结果保存目录
+TIMESTAMP = datetime.now().strftime('%Y%m%d_%H%M%S')  # 时间戳
+REPORT_FORMAT = 'pdf'         # 报告格式
 
 # 图表配置
-PLOT_ENABLE = True
-PLOT_STYLE = "classic"  # classic, seaborn
-PLOT_SAVE_FORMAT = "png"  # png, svg, pdf
-PLOT_WIDTH = 12
-PLOT_HEIGHT = 8
+PLOT_SAVE_FORMAT = 'png'      # 图表保存格式
+PLOT_WIDTH = 12               # 图表宽度(inches)
+PLOT_HEIGHT = 8               # 图表高度(inches)
+# 修改图表样式为有效的matplotlib样式名称
+PLOT_STYLE = 'seaborn-v0_8'   # 图表样式(seaborn更新后的正确样式名称)
+PLOT_ENABLE = True            # 是否启用图表绘制功能
 
-# 时间戳用于唯一标识本次回测
-TIMESTAMP = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-# 创建输出目录
-os.makedirs(RESULT_DIR, exist_ok=True)
+# 确保必要的目录存在
 os.makedirs(LOG_DIR, exist_ok=True)
-# 修改：不再自动创建DATA_DIR，因为数据现在存储在data/processed目录下
-os.makedirs("data/processed", exist_ok=True)
+os.makedirs(RESULT_DIR, exist_ok=True)
+
+# 数据目录配置
+DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
+RAW_DATA_DIR = os.path.join(DATA_DIR, 'raw')
+CLEANED_DATA_DIR = os.path.join(DATA_DIR, 'cleaned')
+
+# 确保目录存在
+os.makedirs(DATA_DIR, exist_ok=True)
+os.makedirs(RAW_DATA_DIR, exist_ok=True)
+os.makedirs(CLEANED_DATA_DIR, exist_ok=True)
+
+# 数据文件路径配置
+STOCK_DATA_FILE = os.path.join(CLEANED_DATA_DIR, 'stock_data.csv')
+INDEX_DATA_FILE = os.path.join(CLEANED_DATA_DIR, 'index_data.csv')
+FINANCIAL_DATA_FILE = os.path.join(CLEANED_DATA_DIR, 'financial_data.csv')
+
+# 数据库配置（如果使用数据库存储清洗后的数据）
+DATABASE_PATH = os.path.join(DATA_DIR, 'stock_data_cleaned.db')
+
+# 清洗后数据的相关配置参数
+DATA_CONFIG = {
+    'date_format': '%Y-%m-%d',
+    'encoding': 'utf-8',
+    'fillna_method': 'ffill',  # 缺失值填充方法
+    'columns_mapping': {       # 清洗后标准列名映射
+        'trade_date': 'date',
+        'stock_code': 'code',
+        'open_price': 'open',
+        'high_price': 'high',
+        'low_price': 'low',
+        'close_price': 'close',
+        'volume': 'volume',
+        'amount': 'amount'
+    }
+}
+
+# 因子计算相关配置
+FACTOR_CONFIG = {
+    'lookback_periods': [5, 10, 20, 60],  # 回看周期
+    'moving_average_windows': [5, 10, 20, 30, 60],  # 均线窗口
+}
+
+if __name__ == "__main__":
+    print(f"项目根目录: {os.path.dirname(__file__)}")
+    print(f"数据目录: {DATA_DIR}")
+    print(f"原始数据目录: {RAW_DATA_DIR}")
+    print(f"清洗后数据目录: {CLEANED_DATA_DIR}")

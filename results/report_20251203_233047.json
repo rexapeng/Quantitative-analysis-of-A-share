@@ -1,0 +1,14 @@
+{
+  "timestamp": "20251203_233047",
+  "initial_cash": 100000,
+  "final_value": 100000,
+  "total_pnl": 0,
+  "total_return_pct": 0.0,
+  "sharpe_ratio": "N/A",
+  "max_drawdown_pct": 0,
+  "annual_return_pct": "N/A",
+  "sqn": "N/A",
+  "total_trades": 0,
+  "winning_trades": 0,
+  "losing_trades": 0
+}

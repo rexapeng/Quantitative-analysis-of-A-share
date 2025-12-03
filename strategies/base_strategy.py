@@ -1,10 +1,24 @@
-#基础策略模版import backtrader as bt
+#基础策略模版
+import backtrader as bt
+
 
 class BaseStrategy(bt.Strategy):
-    """
-    所有策略的基类，包含通用功能
-    """
+    """基础策略类"""
     
+    def __init__(self):
+        pass
+        
+    def next(self):
+        pass
+        
+    def buy_signal(self):
+        """买入信号"""
+        return False
+        
+    def sell_signal(self):
+        """卖出信号"""
+        return False
+        
     params = (
         ('stake', 100),  # 交易数量
     )

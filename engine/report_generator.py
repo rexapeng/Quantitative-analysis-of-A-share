@@ -13,28 +13,48 @@ class ReportGenerator:
         
     def generate_summary_stats(self):
         """生成摘要统计信息"""
+        # 检查results是否为空
+        if not self.results or len(self.results) == 0:
+            self.logger.error("回测结果为空，无法生成报告")
+            # 返回默认统计数据而不是抛出异常
+            summary = {
+                "timestamp": TIMESTAMP,
+                "initial_cash": self.cerebro.broker.startingcash if hasattr(self.cerebro.broker, 'startingcash') else 0,
+                "final_value": self.cerebro.broker.getvalue() if hasattr(self.cerebro.broker, 'getvalue') else 0,
+                "total_pnl": (self.cerebro.broker.getvalue() - self.cerebro.broker.startingcash) if hasattr(self.cerebro.broker, 'getvalue') and hasattr(self.cerebro.broker, 'startingcash') else 0,
+                "total_return_pct": (((self.cerebro.broker.getvalue() / self.cerebro.broker.startingcash) - 1) * 100) if hasattr(self.cerebro.broker, 'getvalue') and hasattr(self.cerebro.broker, 'startingcash') and self.cerebro.broker.startingcash != 0 else 0,
+                "sharpe_ratio": 'N/A',
+                "max_drawdown_pct": 0,
+                "annual_return_pct": 'N/A',
+                "sqn": 'N/A',
+                "total_trades": 0,
+                "winning_trades": 0,
+                "losing_trades": 0
+            }
+            return summary
+            
         strat = self.results[0]
         
         # 获取分析结果
-        sharpe = strat.analyzers.sharpe.get_analysis()
-        drawdown = strat.analyzers.drawdown.get_analysis()
-        returns = strat.analyzers.returns.get_analysis()
-        trades = strat.analyzers.trades.get_analysis()
-        sqn = strat.analyzers.sqn.get_analysis()
+        sharpe = strat.analyzers.sharpe.get_analysis() if hasattr(strat, 'analyzers') else {}
+        drawdown = strat.analyzers.drawdown.get_analysis() if hasattr(strat, 'analyzers') else {}
+        returns = strat.analyzers.returns.get_analysis() if hasattr(strat, 'analyzers') else {}
+        trades = strat.analyzers.trades.get_analysis() if hasattr(strat, 'analyzers') else {}
+        sqn = strat.analyzers.sqn.get_analysis() if hasattr(strat, 'analyzers') else {}
         
         summary = {
             "timestamp": TIMESTAMP,
-            "initial_cash": self.cerebro.broker.startingcash,
-            "final_value": self.cerebro.broker.getvalue(),
-            "total_pnl": self.cerebro.broker.getvalue() - self.cerebro.broker.startingcash,
-            "total_return_pct": ((self.cerebro.broker.getvalue() / self.cerebro.broker.startingcash) - 1) * 100,
-            "sharpe_ratio": sharpe.get('sharperatio', 'N/A'),
-            "max_drawdown_pct": drawdown.max.drawdown,
-            "annual_return_pct": returns.rnorm * 100 if hasattr(returns, 'rnorm') else 'N/A',
-            "sqn": sqn.sqn if hasattr(sqn, 'sqn') else 'N/A',
-            "total_trades": trades.total.total if hasattr(trades, 'total') else 0,
-            "winning_trades": trades.won.total if hasattr(trades, 'won') else 0,
-            "losing_trades": trades.lost.total if hasattr(trades, 'lost') else 0
+            "initial_cash": self.cerebro.broker.startingcash if hasattr(self.cerebro.broker, 'startingcash') else 0,
+            "final_value": self.cerebro.broker.getvalue() if hasattr(self.cerebro.broker, 'getvalue') else 0,
+            "total_pnl": (self.cerebro.broker.getvalue() - self.cerebro.broker.startingcash) if hasattr(self.cerebro.broker, 'getvalue') and hasattr(self.cerebro.broker, 'startingcash') else 0,
+            "total_return_pct": (((self.cerebro.broker.getvalue() / self.cerebro.broker.startingcash) - 1) * 100) if hasattr(self.cerebro.broker, 'getvalue') and hasattr(self.cerebro.broker, 'startingcash') and self.cerebro.broker.startingcash != 0 else 0,
+            "sharpe_ratio": sharpe.get('sharperatio', 'N/A') if sharpe else 'N/A',
+            "max_drawdown_pct": drawdown.get('max', {}).get('drawdown', 0) if drawdown else 0,
+            "annual_return_pct": returns.get('rnorm', 'N/A') if returns else 'N/A',
+            "sqn": sqn.get('sqn', 'N/A') if sqn else 'N/A',
+            "total_trades": trades.get('total', {}).get('total', 0) if trades else 0,
+            "winning_trades": trades.get('won', {}).get('total', 0) if trades else 0,
+            "losing_trades": trades.get('lost', {}).get('total', 0) if trades else 0
         }
         
         return summary

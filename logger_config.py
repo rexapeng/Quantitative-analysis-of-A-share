@@ -1,13 +1,25 @@
 import logging
 import os
 from logging.handlers import RotatingFileHandler
-from config import LOG_DIR, TIMESTAMP
+# 修改导入语句，添加异常处理
+try:
+    from config import LOG_DIR, TIMESTAMP, RESULT_DIR, REPORT_FORMAT
+except ImportError:
+    # 如果无法导入，则使用默认值
+    LOG_DIR = 'logs'
+    TIMESTAMP = 'default'
+    RESULT_DIR = 'results'
+    REPORT_FORMAT = 'pdf'
 
 def setup_logger(name, log_file, level=logging.INFO):
     """设置日志记录器"""
     formatter = logging.Formatter(
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
+    
+    # 确保日志目录存在
+    if not os.path.exists(LOG_DIR):
+        os.makedirs(LOG_DIR)
     
     # 文件处理器（循环日志）
     file_handler = RotatingFileHandler(

@@ -3,6 +3,8 @@ import pandas as pd
 from datetime import datetime
 import os
 from logger_config import data_logger
+# 新增导入config模块以获取清洗后数据目录
+from config import CLEANED_DATA_DIR
 
 class AStockDataLoader:
     @staticmethod
@@ -77,7 +79,7 @@ class AStockDataLoader:
         
         # 如果指定了股票列表，则只加载这些股票的数据
         if stock_list:
-            # 修改：适应新的文件命名方式 sh.600999_(日期).csv
+            # 修改：适应新的文件命名方式 sh.600999_(日期).csv 和清洗后的命名方式
             csv_files = [f for f in csv_files if any(stock in f.split('_')[0] for stock in stock_list)]
         
         data_logger.info(f"找到 {len(csv_files)} 个CSV文件")
@@ -127,8 +129,9 @@ class MultiStockDataLoader:
     多股票数据加载器，支持同时加载和处理多个股票
     """
     
-    def __init__(self, data_dir):
-        self.data_dir = data_dir
+    def __init__(self, data_dir=None):
+        # 修改：默认使用清洗后的数据目录
+        self.data_dir = data_dir or CLEANED_DATA_DIR
         self.stock_data = {}
         
     def load_data(self, stock_list=None, start_date=None, end_date=None):
