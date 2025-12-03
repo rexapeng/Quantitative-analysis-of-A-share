@@ -15,6 +15,10 @@ class Plotter:
         try:
             self.logger.info("开始绘制并保存图表")
             
+            # 兼容性修复：检查并添加_exactbars属性
+            if not hasattr(self.cerebro, '_exactbars'):
+                self.cerebro._exactbars = 0
+            
             # 设置图形大小
             figs = self.cerebro.plot()
             

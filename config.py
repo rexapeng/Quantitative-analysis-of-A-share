@@ -10,8 +10,10 @@ DB_CONFIG = {
     'database': 'stock_data'
 }
 
-# 日志配置
-LOG_DIR = 'logs'
+# 输出目录配置
+OUTPUT_DIR = 'output'
+LOG_DIR = os.path.join(OUTPUT_DIR, 'logs')
+RESULT_DIR = os.path.join(OUTPUT_DIR, 'reports')
 
 # 回测配置
 BACKTEST_CONFIG = {
@@ -20,6 +22,27 @@ BACKTEST_CONFIG = {
     'symbols': ["sh.600999"],                  # 交易标的列表，空列表表示所有标的
                                    # 标的格式示例: ['sh.600999', 'sz.000001', 'sh.600000']
                                    # 其中 sh 表示上海证券交易所，sz 表示深圳证券交易所
+    'strategy': 'rsi_sma',  # 策略名称：'sma' 或 'rsi_sma'
+}
+
+# 策略配置
+# SMA策略配置
+SMA_CONFIG = {
+    'short_period': 10,
+    'long_period': 30,
+    'stake': 100,
+}
+
+# RSI-SMA策略配置
+RSI_SMA_CONFIG = {
+    'sma_short_period': 5,
+    'sma_long_period': 15,
+    'rsi_period': 14,
+    'rsi_overbought': 70,
+    'rsi_oversold': 40,  # 提高超卖阈值，更容易触发买入
+    'stop_loss': 0.05,
+    'take_profit': 0.10,
+    'risk_per_trade': 0.02,
 }
 
 # 经纪商配置
@@ -32,22 +55,27 @@ RESULT_DIR = 'results'        # 结果保存目录
 TIMESTAMP = datetime.now().strftime('%Y%m%d_%H%M%S')  # 时间戳
 REPORT_FORMAT = 'pdf'         # 报告格式
 
+# 调试配置
+DEBUG_MODE = True             # 调试模式开关
+DEBUG_LEVEL = 'DEBUG'         # 调试日志级别: DEBUG, INFO, WARNING, ERROR
+
 # 图表配置
 PLOT_SAVE_FORMAT = 'png'      # 图表保存格式
 PLOT_WIDTH = 12               # 图表宽度(inches)
 PLOT_HEIGHT = 8               # 图表高度(inches)
 # 修改图表样式为有效的matplotlib样式名称
 PLOT_STYLE = 'seaborn-v0_8'   # 图表样式(seaborn更新后的正确样式名称)
-PLOT_ENABLE = True            # 是否启用图表绘制功能
+PLOT_ENABLE = False            # 是否启用图表绘制功能
 
 # 确保必要的目录存在
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs(LOG_DIR, exist_ok=True)
 os.makedirs(RESULT_DIR, exist_ok=True)
 
 # 数据目录配置
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
 RAW_DATA_DIR = os.path.join(DATA_DIR, 'raw')
-CLEANED_DATA_DIR = os.path.join(DATA_DIR, 'cleaned')
+CLEANED_DATA_DIR = os.path.join(DATA_DIR, 'processed')
 
 # 确保目录存在
 os.makedirs(DATA_DIR, exist_ok=True)

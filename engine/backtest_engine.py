@@ -3,6 +3,7 @@ from datetime import datetime
 import pandas as pd
 from data.data_feed import MultiStockDataLoader
 from strategies.sma_strategy import SMAStrategy
+from strategies.rsi_sma_strategy import RSIStrategy
 from utils.analyzer import add_analyzers
 from logger_config import engine_logger
 # 导入新增的配置项
@@ -46,18 +47,26 @@ class BacktestEngine:
             
         self.logger.info(f"成功加载 {len(data_feeds)} 只股票的数据")
         
-    def setup_strategy(self):
+    def setup_strategy(self, strategy_name='sma', **kwargs):
         """设置策略"""
-        # 添加策略
-        self.cerebro.addstrategy(SMAStrategy)
-        self.logger.info("策略添加完成")
+        # 根据策略名称选择不同的策略
+        strategy_map = {
+            'sma': SMAStrategy,
+            'rsi_sma': RSIStrategy,
+        }
+        
+        strategy_class = strategy_map.get(strategy_name, SMAStrategy)
+        
+        # 添加策略并传入参数
+        self.cerebro.addstrategy(strategy_class, **kwargs)
+        self.logger.info(f"{strategy_class.__name__} 策略添加完成")
         
     def setup_analyzers(self):
         """设置分析器"""
         add_analyzers(self.cerebro)
         self.logger.info("分析器添加完成")
         
-    def execute(self):
+    def execute(self, strategy_name='sma', **strategy_params):
         """执行回测"""
         self.logger.info("开始执行回测")
         
@@ -68,7 +77,7 @@ class BacktestEngine:
         self.load_data()
         
         # 设置策略
-        self.setup_strategy()
+        self.setup_strategy(strategy_name, **strategy_params)
         
         # 设置分析器
         self.setup_analyzers()

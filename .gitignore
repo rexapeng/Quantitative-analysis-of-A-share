@@ -142,10 +142,16 @@ Thumbs.db
 # Ignore raw and processed data files/directories
 /data/raw/
 /data/processed/
-/log
 
-# Ignore generated reports/charts if saved automatically and you don't want them tracked
+# Ignore output directories (logs and reports)
+/output/
+
+# Ignore old log and report directories for backward compatibility
+/log/
 /reports/
+/results/
+/logs/
+
 
 # Ignore local configuration files that might contain sensitive info or user-specific paths
 /local_config.py
