@@ -77,14 +77,16 @@ class AStockDataLoader:
         
         # 如果指定了股票列表，则只加载这些股票的数据
         if stock_list:
-            csv_files = [f for f in csv_files if any(stock in f for stock in stock_list)]
+            # 修改：适应新的文件命名方式 sh.600999_(日期).csv
+            csv_files = [f for f in csv_files if any(stock in f.split('_')[0] for stock in stock_list)]
         
         data_logger.info(f"找到 {len(csv_files)} 个CSV文件")
         
         for csv_file in csv_files:
             try:
                 file_path = os.path.join(data_dir, csv_file)
-                stock_code = csv_file.replace('.csv', '')  # 提取股票代码
+                # 修改：提取股票代码的方式适配新命名规则
+                stock_code = csv_file.split('_')[0]  # 提取股票代码部分
                 
                 df = AStockDataLoader.load_single_csv(file_path, start_date, end_date)
                 stock_data[stock_code] = df
