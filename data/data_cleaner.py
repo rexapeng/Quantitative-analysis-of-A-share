@@ -4,10 +4,26 @@ import numpy as np
 from pathlib import Path
 import warnings
 import datetime
+import sys
+import multiprocessing as mp
+from tqdm import tqdm
 warnings.filterwarnings('ignore')
 
+# 修改导入方式，避免模块导入错误
+try:
+    # 尝试相对导入
+    from .get_data import DATA_DIR as RAW_DATA_DIR
+except (ImportError, ValueError):
+    try:
+        # 如果相对导入失败，尝试直接导入
+        import get_data
+        RAW_DATA_DIR = get_data.DATA_DIR
+    except ImportError:
+        # 如果都失败，使用默认路径
+        RAW_DATA_DIR = "./data/raw"
+
 class DataCleaner:
-    def __init__(self, raw_data_path='./data/raw', cleaned_data_path='./data/processed'):
+    def __init__(self, raw_data_path=RAW_DATA_DIR, cleaned_data_path='./data/processed'):
         """
         初始化数据清洗器
         
@@ -39,14 +55,24 @@ class DataCleaner:
             
             # 记录原始数据信息
             original_rows = len(df)
-            stock_code = file_path.stem
+            # 从文件名提取股票代码 (去掉 _history 部分)
+            stock_code = file_path.stem.replace('_history', '')
             
             # 字符转数值处理
-            numeric_columns = ['open', 'high', 'low', 'close', 'preclose', 'volume', 'amount', 'turn', 'pctChg']
+            numeric_columns = ['open', 'high', 'low', 'close', 'preclose', 'volume', 'amount', 'turn']
+            # 注意：pctChg在原始数据中可能不存在，因为是在get_data.py中计算的
             for col in numeric_columns:
                 if col in df.columns:
                     # 将字符串类型的数值转换为数字，处理特殊字符
                     df[col] = pd.to_numeric(df[col], errors='coerce')
+            
+            # 如果没有pctChg列，则计算它
+            if 'pctChg' not in df.columns and all(col in df.columns for col in ['close', 'preclose']):
+                # 计算涨跌幅: (收盘价 - 前收盘价) / 前收盘价 * 100
+                df['pctChg'] = (df['close'] - df['preclose']) / df['preclose'] * 100
+                # 处理可能的无穷大或NaN值
+                df['pctChg'] = df['pctChg'].replace([float('inf'), -float('inf')], 0)
+                df['pctChg'] = df['pctChg'].fillna(0)
             
             # 缺失值处理
             # 价格数据使用前值填充
@@ -62,8 +88,10 @@ class DataCleaner:
                     df[col] = df[col].fillna(0)
             
             # 其他字段缺失值处理
-            df['turn'] = df['turn'].fillna(0)
-            df['pctChg'] = df['pctChg'].fillna(0)
+            if 'turn' in df.columns:
+                df['turn'] = df['turn'].fillna(0)
+            if 'pctChg' in df.columns:
+                df['pctChg'] = df['pctChg'].fillna(0)
             
             # 日期格式化
             if 'date' in df.columns:
@@ -76,55 +104,228 @@ class DataCleaner:
                 else:
                     earliest_date = 'unknown'
             
-            # 生成数据质量报告
+            # 更严格的质控检查
+            quality_deductions = 0
+            
+            # 检查关键价格列是否存在
+            required_price_cols = ['open', 'high', 'low', 'close', 'preclose']
+            missing_price_cols = [col for col in required_price_cols if col not in df.columns]
+            quality_deductions += len(missing_price_cols) * 5  # 每缺少一个关键列扣5分
+            
+            # 检查关键价格是否有负值（不合理）
+            for col in required_price_cols:
+                if col in df.columns:
+                    negative_count = (df[col] < 0).sum()
+                    quality_deductions += negative_count * 2  # 每个负价格扣2分
+                    
+            # 检查成交量是否有负值
+            if 'volume' in df.columns:
+                negative_volume = (df['volume'] < 0).sum()
+                quality_deductions += negative_volume * 2
+                
+            if 'amount' in df.columns:
+                negative_amount = (df['amount'] < 0).sum()
+                quality_deductions += negative_amount * 2
+            
+            # 检查数据重复情况
+            duplicate_rows = df.duplicated().sum()
+            quality_deductions += duplicate_rows * 3  # 每个重复行扣3分
+            
+            # 计算质量分数 (满分100分)
             missing_data = df.isnull().sum().sum()
             total_cells = df.shape[0] * df.shape[1]
-            quality_score = (1 - missing_data / total_cells) * 100 if total_cells > 0 else 100
+            quality_score = 100.0
+            if total_cells > 0:
+                quality_score -= (missing_data / total_cells) * 100  # 缺失值扣分
+            quality_score -= min(quality_deductions, 50)  # 其他质量问题最多扣50分
+            quality_score = max(0, quality_score)  # 确保不低于0分
+
+            # 保存清洗后的数据，使用与原始文件相同的命名规则但保存到不同目录
+            cleaned_file_name = f"{stock_code}_history.csv"
+            cleaned_file_path = self.cleaned_data_path / cleaned_file_name
+            df.to_csv(cleaned_file_path, index=False)
             
-            self.quality_report.append({
+            # 返回处理结果信息
+            return {
                 'stock_code': stock_code,
                 'original_rows': original_rows,
                 'cleaned_rows': len(df),
                 'missing_values': missing_data,
-                'quality_score': quality_score
-            })
-            
-            # 保存清洗后的数据，使用新命名规则
-            if 'earliest_date' in locals():
-                # 修改文件命名格式为 sh.600999_(最早数据日期).csv
-                cleaned_file_name = f"sh.{stock_code.split('.')[1]}_({earliest_date}).csv" if '.' in stock_code else f"sh.{stock_code}_({earliest_date}).csv"
-            else:
-                # 如果无法获取最早日期，则使用原格式
-                cleaned_file_name = f"sh.{stock_code.split('.')[1]}.csv" if '.' in stock_code else f"sh.{stock_code}.csv"
-                
-            cleaned_file_path = self.cleaned_data_path / cleaned_file_name
-            df.to_csv(cleaned_file_path, index=False)
-            
-            return True
+                'duplicate_rows': duplicate_rows,
+                'negative_prices': sum((df[col] < 0).sum() for col in required_price_cols if col in df.columns),
+                'quality_score': quality_score,
+                'success': True
+            }
             
         except Exception as e:
             print(f"处理文件 {file_path} 时出错: {e}")
-            return False
+            stock_code = file_path.stem.replace('_history', '')
+            return {
+                'stock_code': stock_code,
+                'success': False
+            }
     
+    def clean_single_file_worker(self, file_path):
+        """
+        清洗单个股票文件的工作函数（用于多进程处理）
+        
+        Parameters:
+        file_path: 股票数据文件路径
+        """
+        try:
+            # 读取数据
+            df = pd.read_csv(file_path)
+            
+            # 记录原始数据信息
+            original_rows = len(df)
+            # 从文件名提取股票代码 (去掉 _history 部分)
+            stock_code = file_path.stem.replace('_history', '')
+            
+            # 字符转数值处理
+            numeric_columns = ['open', 'high', 'low', 'close', 'preclose', 'volume', 'amount', 'turn']
+            # 注意：pctChg在原始数据中可能不存在，因为是在get_data.py中计算的
+            for col in numeric_columns:
+                if col in df.columns:
+                    # 将字符串类型的数值转换为数字，处理特殊字符
+                    df[col] = pd.to_numeric(df[col], errors='coerce')
+            
+            # 如果没有pctChg列，则计算它
+            if 'pctChg' not in df.columns and all(col in df.columns for col in ['close', 'preclose']):
+                # 计算涨跌幅: (收盘价 - 前收盘价) / 前收盘价 * 100
+                df['pctChg'] = (df['close'] - df['preclose']) / df['preclose'] * 100
+                # 处理可能的无穷大或NaN值
+                df['pctChg'] = df['pctChg'].replace([float('inf'), -float('inf')], 0)
+                df['pctChg'] = df['pctChg'].fillna(0)
+            
+            # 缺失值处理
+            # 价格数据使用前值填充
+            price_columns = ['open', 'high', 'low', 'close', 'preclose']
+            for col in price_columns:
+                if col in df.columns:
+                    df[col] = df[col].fillna(method='ffill')
+            
+            # 成交量数据缺失填0
+            volume_columns = ['volume', 'amount']
+            for col in volume_columns:
+                if col in df.columns:
+                    df[col] = df[col].fillna(0)
+            
+            # 其他字段缺失值处理
+            if 'turn' in df.columns:
+                df['turn'] = df['turn'].fillna(0)
+            if 'pctChg' in df.columns:
+                df['pctChg'] = df['pctChg'].fillna(0)
+            
+            # 日期格式化
+            if 'date' in df.columns:
+                df['date'] = pd.to_datetime(df['date'])
+                df = df.sort_values('date').reset_index(drop=True)
+                
+                # 获取最早日期用于文件命名
+                if len(df) > 0:
+                    earliest_date = df['date'].min().strftime('%Y%m%d')
+                else:
+                    earliest_date = 'unknown'
+            
+            # 更严格的质控检查
+            quality_deductions = 0
+            
+            # 检查关键价格列是否存在
+            required_price_cols = ['open', 'high', 'low', 'close', 'preclose']
+            missing_price_cols = [col for col in required_price_cols if col not in df.columns]
+            quality_deductions += len(missing_price_cols) * 5  # 每缺少一个关键列扣5分
+            
+            # 检查关键价格是否有负值（不合理）
+            for col in required_price_cols:
+                if col in df.columns:
+                    negative_count = (df[col] < 0).sum()
+                    quality_deductions += negative_count * 2  # 每个负价格扣2分
+                    
+            # 检查成交量是否有负值
+            if 'volume' in df.columns:
+                negative_volume = (df['volume'] < 0).sum()
+                quality_deductions += negative_volume * 2
+                
+            if 'amount' in df.columns:
+                negative_amount = (df['amount'] < 0).sum()
+                quality_deductions += negative_amount * 2
+            
+            # 检查数据重复情况
+            duplicate_rows = df.duplicated().sum()
+            quality_deductions += duplicate_rows * 3  # 每个重复行扣3分
+            
+            # 计算质量分数 (满分100分)
+            missing_data = df.isnull().sum().sum()
+            total_cells = df.shape[0] * df.shape[1]
+            quality_score = 100.0
+            if total_cells > 0:
+                quality_score -= (missing_data / total_cells) * 100  # 缺失值扣分
+            quality_score -= min(quality_deductions, 50)  # 其他质量问题最多扣50分
+            quality_score = max(0, quality_score)  # 确保不低于0分
+
+            # 保存清洗后的数据，使用与原始文件相同的命名规则但保存到不同目录
+            cleaned_file_name = f"{stock_code}_history.csv"
+            cleaned_file_path = self.cleaned_data_path / cleaned_file_name
+            df.to_csv(cleaned_file_path, index=False)
+            
+            # 返回处理结果信息
+            return {
+                'stock_code': stock_code,
+                'original_rows': original_rows,
+                'cleaned_rows': len(df),
+                'missing_values': missing_data,
+                'duplicate_rows': duplicate_rows,
+                'negative_prices': sum((df[col] < 0).sum() for col in required_price_cols if col in df.columns),
+                'quality_score': quality_score,
+                'success': True
+            }
+            
+        except Exception as e:
+            print(f"处理文件 {file_path} 时出错: {e}")
+            stock_code = file_path.stem.replace('_history', '')
+            return {
+                'stock_code': stock_code,
+                'success': False
+            }
+
     def clean_all_files(self):
         """
-        清洗所有股票数据文件
+        清洗所有股票数据文件（多进程版本）
         """
         print("开始清洗数据...")
         
-        # 获取所有CSV文件
-        csv_files = list(self.raw_data_path.glob("*.csv"))
+        # 获取所有CSV文件，匹配get_data.py保存的文件命名模式
+        csv_files = list(self.raw_data_path.glob("*_history.csv"))
         print(f"找到 {len(csv_files)} 个文件待处理")
         
-        # 逐个处理文件
+        # 使用多进程处理文件
+        num_processes = min(mp.cpu_count(), len(csv_files))
+        print(f"使用 {num_processes} 个进程进行数据清洗...")
+        
+        # 使用tqdm显示进度条
+        with mp.Pool(processes=num_processes) as pool:
+            # 使用imap方法可以实时显示进度
+            results = list(tqdm(
+                pool.imap(self.clean_single_file_worker, csv_files),
+                total=len(csv_files),
+                desc="清洗进度"
+            ))
+        
+        # 收集处理结果
         success_count = 0
-        for i, file_path in enumerate(csv_files):
-            if self.clean_single_file(file_path):
+        for result in results:
+            if result['success']:
                 success_count += 1
-            
-            # 显示进度
-            if (i + 1) % 100 == 0:
-                print(f"已处理 {i + 1}/{len(csv_files)} 个文件")
+                # 将结果添加到质量报告中
+                self.quality_report.append({
+                    'stock_code': result['stock_code'],
+                    'original_rows': result['original_rows'],
+                    'cleaned_rows': result['cleaned_rows'],
+                    'missing_values': result['missing_values'],
+                    'duplicate_rows': result['duplicate_rows'],
+                    'negative_prices': result['negative_prices'],
+                    'quality_score': result['quality_score']
+                })
         
         print(f"数据清洗完成，成功处理 {success_count}/{len(csv_files)} 个文件")
         
@@ -168,12 +369,18 @@ class DataCleaner:
         
         print(f"\n数据质量最差的{top_n}个文件:")
         print("=" * 80)
-        print(f"{'股票代码':<10} {'原始行数':<10} {'清洗后行数':<12} {'缺失值数量':<12} {'质量分数':<10}")
+        # 使用格式化字符串确保对齐
+        print("{:<15} {:<10} {:<12} {:<12} {:<10}".format('股票代码', '原始行数', '清洗后行数', '缺失值数量', '质量分数'))
         print("-" * 80)
         
         for _, row in worst_files.iterrows():
-            print(f"{row['stock_code']:<10} {row['original_rows']:<10} {row['cleaned_rows']:<12} "
-                  f"{row['missing_values']:<12} {row['quality_score']:<10.2f}")
+            print("{:<15} {:<10} {:<12} {:<12} {:<10.2f}".format(
+                row['stock_code'], 
+                row['original_rows'], 
+                row['cleaned_rows'], 
+                row['missing_values'], 
+                row['quality_score']
+            ))
         
         print("=" * 80)
 
@@ -181,8 +388,8 @@ def main():
     """
     主函数
     """
-    # 实例化DataCleaner，指定清洗后数据保存路径为 ./data/processed/
-    cleaner = DataCleaner(raw_data_path='./data/raw', cleaned_data_path='./data/processed')
+    # 实例化DataCleaner，使用与get_data.py一致的路径配置
+    cleaner = DataCleaner(raw_data_path=RAW_DATA_DIR, cleaned_data_path='./data/processed')
     cleaner.clean_all_files()
 
 if __name__ == "__main__":
