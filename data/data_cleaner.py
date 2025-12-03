@@ -3,10 +3,11 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 import warnings
+import datetime
 warnings.filterwarnings('ignore')
 
 class DataCleaner:
-    def __init__(self, raw_data_path='./data/raw', cleaned_data_path='./data/cleaned'):
+    def __init__(self, raw_data_path='./data/raw', cleaned_data_path='./data/processed'):
         """
         初始化数据清洗器
         
@@ -17,6 +18,10 @@ class DataCleaner:
         self.raw_data_path = Path(raw_data_path)
         self.cleaned_data_path = Path(cleaned_data_path)
         self.cleaned_data_path.mkdir(parents=True, exist_ok=True)
+        
+        # 创建log目录
+        self.log_path = Path('./log')
+        self.log_path.mkdir(parents=True, exist_ok=True)
         
         # 数据质量报告
         self.quality_report = []
@@ -64,6 +69,12 @@ class DataCleaner:
             if 'date' in df.columns:
                 df['date'] = pd.to_datetime(df['date'])
                 df = df.sort_values('date').reset_index(drop=True)
+                
+                # 获取最早日期用于文件命名
+                if len(df) > 0:
+                    earliest_date = df['date'].min().strftime('%Y%m%d')
+                else:
+                    earliest_date = 'unknown'
             
             # 生成数据质量报告
             missing_data = df.isnull().sum().sum()
@@ -78,8 +89,15 @@ class DataCleaner:
                 'quality_score': quality_score
             })
             
-            # 保存清洗后的数据
-            cleaned_file_path = self.cleaned_data_path / f"{stock_code}.csv"
+            # 保存清洗后的数据，使用新命名规则
+            if 'earliest_date' in locals():
+                # 修改文件命名格式为 sh.600999_(最早数据日期).csv
+                cleaned_file_name = f"sh.{stock_code.split('.')[1]}_({earliest_date}).csv" if '.' in stock_code else f"sh.{stock_code}_({earliest_date}).csv"
+            else:
+                # 如果无法获取最早日期，则使用原格式
+                cleaned_file_name = f"sh.{stock_code.split('.')[1]}.csv" if '.' in stock_code else f"sh.{stock_code}.csv"
+                
+            cleaned_file_path = self.cleaned_data_path / cleaned_file_name
             df.to_csv(cleaned_file_path, index=False)
             
             return True
@@ -124,8 +142,9 @@ class DataCleaner:
         # 转换为DataFrame
         report_df = pd.DataFrame(self.quality_report)
         
-        # 保存完整报告
-        report_path = self.cleaned_data_path / "data_quality_report.csv"
+        # 保存完整报告到log目录，带时间戳
+        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        report_path = self.log_path / f"data_quality_report_{timestamp}.csv"
         report_df.to_csv(report_path, index=False)
         print(f"数据质量报告已保存至: {report_path}")
         
@@ -162,7 +181,8 @@ def main():
     """
     主函数
     """
-    cleaner = DataCleaner()
+    # 实例化DataCleaner，指定清洗后数据保存路径为 ./data/processed/
+    cleaner = DataCleaner(raw_data_path='./data/raw', cleaned_data_path='./data/processed')
     cleaner.clean_all_files()
 
 if __name__ == "__main__":

@@ -2,9 +2,11 @@ import os
 from datetime import datetime
 
 # 数据配置
-DATA_DIR = "stock_data"  # 存放股票CSV文件的目录
+# 修改：将DATA_DIR指向清洗后的数据目录
+DATA_DIR = "data/processed"  # 存放股票CSV文件的目录
 STOCK_LIST = None  # 股票列表，如 ['sh.600999', 'sz.000001']，None表示所有股票
-SINGLE_STOCK = "sh.600999"  # 单个股票回测时使用的股票代码
+# 修改：更新单个股票的文件名格式
+SINGLE_STOCK = "sh.600999_(20140101)"  # 单个股票回测时使用的股票代码（示例）
 
 # 回测配置
 START_DATE = "2014-01-01"
@@ -43,4 +45,5 @@ TIMESTAMP = datetime.now().strftime("%Y%m%d_%H%M%S")
 # 创建输出目录
 os.makedirs(RESULT_DIR, exist_ok=True)
 os.makedirs(LOG_DIR, exist_ok=True)
-os.makedirs(DATA_DIR, exist_ok=True)
+# 修改：不再自动创建DATA_DIR，因为数据现在存储在data/processed目录下
+os.makedirs("data/processed", exist_ok=True)
