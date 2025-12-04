@@ -135,15 +135,6 @@ FACTOR_CONFIG = {
     'preprocessing_method': 'standard'  # 预处理方法
 }
 
-# Alphalens因子分析配置
-ALPHALENS_SETTINGS = {
-    'periods': [1, 5, 10],
-    'quantiles': 5,
-    'bins': None,
-    'groupby_labels': None,
-    'max_loss': 0.25  # 最大允许丢失的数据比例
-}
-
 # 时间戳用于唯一标识本次回测
 TIMESTAMP = datetime.now().strftime("%Y%m%d_%H%M%S")
 
