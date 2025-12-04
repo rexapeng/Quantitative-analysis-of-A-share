@@ -74,6 +74,7 @@ PLOT_HEIGHT = 8               # 图表高度(inches)
 PLOT_STYLE = 'seaborn-v0_8'   # 图表样式(seaborn更新后的正确样式名称)
 PLOT_ENABLE = True            # 是否启用图表绘制功能
 
+<<<<<<< HEAD
 # 确保必要的目录存在
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs(LOG_DIR, exist_ok=True)
@@ -125,3 +126,31 @@ if __name__ == "__main__":
     print(f"数据目录: {DATA_DIR}")
     print(f"原始数据目录: {RAW_DATA_DIR}")
     print(f"清洗后数据目录: {CLEANED_DATA_DIR}")
+=======
+# 因子分析配置
+FACTOR_CONFIG = {
+    'forward_periods': [1, 5, 10],  # 因子预测周期
+    'analysis_window': 60,  # 滚动分析窗口
+    'n_quantiles': 5,  # 分组数量
+    'preprocessing_method': 'standard'  # 预处理方法
+}
+
+# Alphalens因子分析配置
+ALPHALENS_SETTINGS = {
+    'periods': [1, 5, 10],
+    'quantiles': 5,
+    'bins': None,
+    'groupby_labels': None,
+    'max_loss': 0.25  # 最大允许丢失的数据比例
+}
+
+# 时间戳用于唯一标识本次回测
+TIMESTAMP = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+# 创建输出目录
+os.makedirs(RESULT_DIR, exist_ok=True)
+os.makedirs(LOG_DIR, exist_ok=True)
+# 修改：不再自动创建DATA_DIR，因为数据现在存储在data/processed目录下
+os.makedirs("data/processed", exist_ok=True)
+os.makedirs("factor_results", exist_ok=True)  # 因子分析结果目录
+>>>>>>> 9c0a228 (因子分析初版提交)

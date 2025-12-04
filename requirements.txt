@@ -1,4 +1,5 @@
 项目的Python依赖库说明
+<<<<<<< HEAD
 
 # 数据分析和量化交易
 backtrader
@@ -21,3 +22,7 @@ logging
 # 其他
 click
 colorama
+=======
+# 添加Alphalens依赖
+alphalens==0.4.0
+>>>>>>> 9c0a228 (因子分析初版提交)
