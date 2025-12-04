@@ -2,10 +2,36 @@ import backtrader as bt
 import pandas as pd
 from datetime import datetime
 import os
-from logger_config import data_logger
+import sys
 from tqdm import tqdm
-# 新增导入config模块以获取清洗后数据目录
-from config import CLEANED_DATA_DIR
+
+# 获取当前文件的目录
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(current_dir)
+
+# 添加项目根目录到sys.path
+sys.path.append(project_root)
+
+# 现在可以直接导入logger_config和config模块
+try:
+    # 因为config目录已经添加到sys.path中，所以可以直接导入
+    from config.logger_config import data_logger
+    print("✓ 成功导入 config.logger_config.data_logger")
+except Exception as e:
+    print(f"✗ 导入 config.logger_config.data_logger 失败: {e}")
+    # 如果导入失败，创建一个简单的logger
+    import logging
+    logging.basicConfig(level=logging.INFO)
+    data_logger = logging.getLogger("data_logger")
+
+# 尝试导入CLEANED_DATA_DIR
+try:
+    from config.config import CLEANED_DATA_DIR
+    print("✓ 成功导入 config.config.CLEANED_DATA_DIR")
+except Exception as e:
+    print(f"✗ 导入 config.config.CLEANED_DATA_DIR 失败: {e}")
+    # 如果导入失败，使用默认值
+    CLEANED_DATA_DIR = "cleaned_data/"
 
 class AStockDataLoader:
     @staticmethod

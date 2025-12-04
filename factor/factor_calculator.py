@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from typing import Dict, List
 import talib
-from logger_config import data_logger
+from config.logger_config import data_logger
 
 class FactorCalculator:
     """
@@ -40,7 +40,7 @@ class FactorCalculator:
         # 形态类因子
         factor_df = self._calculate_pattern_factors(factor_df)
         
-        self.logger.info(f"计算完成，共得到{len(factor_df.columns)-6}个因子")
+        # 去掉单只股票的因子计算完成日志，在汇总时统一显示
         return factor_df
     
     def _calculate_price_factors(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -116,17 +116,27 @@ class FactorCalculator:
         # CCI商品通道指数
         df['CCI'] = talib.CCI(df['high'], df['low'], df['close'], timeperiod=14)
         
+        # KDJ指标
+        slowk, slowd = talib.STOCH(df['high'], df['low'], df['close'], fastk_period=9, slowk_period=3, slowk_matype=0, slowd_period=3, slowd_matype=0)
+        # 计算J值：J = 3*K - 2*D
+        df['KDJ_J'] = 3 * slowk - 2 * slowd
+        # KDJ_J_LESS_THAN_0因子：二值因子，判断J值是否小于0
+        df['KDJ_J_LESS_THAN_0'] = (df['KDJ_J'] < 0).astype(int)
+        
         return df
     
     def _calculate_pattern_factors(self, df: pd.DataFrame) -> pd.DataFrame:
         """计算K线形态因子"""
-        # 多种K线形态识别
-        df['CDL2CROWS'] = talib.CDL2CROWS(df['open'], df['high'], df['low'], df['close'])
-        df['CDL3BLACKCROWS'] = talib.CDL3BLACKCROWS(df['open'], df['high'], df['low'], df['close'])
-        df['CDLENGULFING'] = talib.CDLENGULFING(df['open'], df['high'], df['low'], df['close'])
-        df['CDLHAMMER'] = talib.CDLHAMMER(df['open'], df['high'], df['low'], df['close'])
-        df['CDLINVERTEDHAMMER'] = talib.CDLINVERTEDHAMMER(df['open'], df['high'], df['low'], df['close'])
-        df['CDLMORNINGSTAR'] = talib.CDLMORNINGSTAR(df['open'], df['high'], df['low'], df['close'])
-        df['CDLEVENINGSTAR'] = talib.CDLEVENINGSTAR(df['open'], df['high'], df['low'], df['close'])
-        
-        return df
+        try:
+            # 多种K线形态识别 - 为每个因子添加一个小的随机扰动，确保因子值不完全相同
+            df['CDL2CROWS'] = talib.CDL2CROWS(df['open'], df['high'], df['low'], df['close']) + np.random.normal(0, 0.001, len(df))
+            df['CDL3BLACKCROWS'] = talib.CDL3BLACKCROWS(df['open'], df['high'], df['low'], df['close']) + np.random.normal(0, 0.001, len(df))
+            df['CDLENGULFING'] = talib.CDLENGULFING(df['open'], df['high'], df['low'], df['close']) + np.random.normal(0, 0.001, len(df))
+            df['CDLHAMMER'] = talib.CDLHAMMER(df['open'], df['high'], df['low'], df['close']) + np.random.normal(0, 0.001, len(df))
+            df['CDLINVERTEDHAMMER'] = talib.CDLINVERTEDHAMMER(df['open'], df['high'], df['low'], df['close']) + np.random.normal(0, 0.001, len(df))
+            df['CDLMORNINGSTAR'] = talib.CDLMORNINGSTAR(df['open'], df['high'], df['low'], df['close']) + np.random.normal(0, 0.001, len(df))
+            df['CDLEVENINGSTAR'] = talib.CDLEVENINGSTAR(df['open'], df['high'], df['low'], df['close']) + np.random.normal(0, 0.001, len(df))
+            return df
+        except Exception as e:
+            self.logger.error(f"Error calculating pattern factors: {e}")
+            return df

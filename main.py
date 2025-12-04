@@ -7,8 +7,8 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from engine.backtest_engine import BacktestEngine
 from engine.report_generator import ReportGenerator
 from utils.plotter import Plotter
-from logger_config import main_logger
-from config import PLOT_ENABLE, BACKTEST_CONFIG, SMA_CONFIG, RSI_SMA_CONFIG, STOCK_SELECTION_CONFIG, RESULT_DIR
+from config.logger_config import main_logger
+from config.config import PLOT_ENABLE, BACKTEST_CONFIG, SMA_CONFIG, RSI_SMA_CONFIG, STOCK_SELECTION_CONFIG, RESULT_DIR
 
 def main():
     """主程序入口"""

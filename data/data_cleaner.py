@@ -12,7 +12,7 @@ warnings.filterwarnings('ignore')
 # 导入项目配置
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/..')
 try:
-    from config import RAW_DATA_DIR, PROCESSED_DATA_DIR, LOG_DIR
+    from config.config import RAW_DATA_DIR, CLEANED_DATA_DIR as PROCESSED_DATA_DIR, LOG_DIR
 except ImportError:
     # 如果配置文件导入失败，使用默认路径
     RAW_DATA_DIR = "./data/raw"
@@ -94,6 +94,11 @@ class DataCleaner:
             if 'date' in df.columns:
                 df['date'] = pd.to_datetime(df['date'])
                 df = df.sort_values('date').reset_index(drop=True)
+                
+                # 计算十日收益率: (当前收盘价 - 10天前收盘价) / 10天前收盘价 * 100
+                df['ten_day_return'] = (df['close'] - df['close'].shift(10)) / df['close'].shift(10) * 100
+                df['ten_day_return'] = df['ten_day_return'].replace([float('inf'), -float('inf')], 0)
+                df['ten_day_return'] = df['ten_day_return'].fillna(0)
                 
                 # 获取最早日期用于文件命名
                 if len(df) > 0:
@@ -217,6 +222,11 @@ class DataCleaner:
             if 'date' in df.columns:
                 df['date'] = pd.to_datetime(df['date'])
                 df = df.sort_values('date').reset_index(drop=True)
+                
+                # 计算十日收益率: (当前收盘价 - 10天前收盘价) / 10天前收盘价 * 100
+                df['ten_day_return'] = (df['close'] - df['close'].shift(10)) / df['close'].shift(10) * 100
+                df['ten_day_return'] = df['ten_day_return'].replace([float('inf'), -float('inf')], 0)
+                df['ten_day_return'] = df['ten_day_return'].fillna(0)
                 
                 # 获取最早日期用于文件命名
                 if len(df) > 0:

@@ -74,14 +74,14 @@ PLOT_HEIGHT = 8               # 图表高度(inches)
 PLOT_STYLE = 'seaborn-v0_8'   # 图表样式(seaborn更新后的正确样式名称)
 PLOT_ENABLE = True            # 是否启用图表绘制功能
 
-<<<<<<< HEAD
+
 # 确保必要的目录存在
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs(LOG_DIR, exist_ok=True)
 os.makedirs(RESULT_DIR, exist_ok=True)
 
 # 数据目录配置
-DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
+DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
 RAW_DATA_DIR = os.path.join(DATA_DIR, 'raw')
 CLEANED_DATA_DIR = os.path.join(DATA_DIR, 'processed')
 
@@ -119,6 +119,31 @@ DATA_CONFIG = {
 FACTOR_CONFIG = {
     'lookback_periods': [5, 10, 20, 60],  # 回看周期
     'moving_average_windows': [5, 10, 20, 30, 60],  # 均线窗口
+    'forward_periods': [1, 5, 10],  # 因子预测周期
+    'analysis_window': 60,  # 滚动分析窗口
+    'n_quantiles': 5,  # 分组数量
+    'preprocessing_method': 'standard'  # 预处理方法
+}
+
+# 单只股票分析配置
+SINGLE_STOCK = "sh.600036"  # 默认分析的股票代码
+
+# 因子数据保存目录
+FACTOR_DATA_DIR = "/factory/data/"
+
+# 指数成分股配置
+INDEX_COMPONENTS = {
+    'hs300': '沪深300',      # 沪深300成分股
+    'zz500': '中证500',      # 中证500成分股
+    'zz1000': '中证1000',    # 中证1000成分股
+    'zz2000': '中证2000'     # 中证2000成分股
+}
+
+# 因子分析范围配置
+FACTOR_ANALYSIS_SCOPE = {
+    'scope_type': 'index_components',  # 分析范围类型: 'single_stock' 或 'index_components'
+    'single_stock': 'sh.600036',   # 单只股票代码
+    'index_code': 'hs300'          # 指数代码，当scope_type为'index_components'时有效
 }
 
 if __name__ == "__main__":
@@ -126,22 +151,4 @@ if __name__ == "__main__":
     print(f"数据目录: {DATA_DIR}")
     print(f"原始数据目录: {RAW_DATA_DIR}")
     print(f"清洗后数据目录: {CLEANED_DATA_DIR}")
-=======
-# 因子分析配置
-FACTOR_CONFIG = {
-    'forward_periods': [1, 5, 10],  # 因子预测周期
-    'analysis_window': 60,  # 滚动分析窗口
-    'n_quantiles': 5,  # 分组数量
-    'preprocessing_method': 'standard'  # 预处理方法
-}
 
-# 时间戳用于唯一标识本次回测
-TIMESTAMP = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-# 创建输出目录
-os.makedirs(RESULT_DIR, exist_ok=True)
-os.makedirs(LOG_DIR, exist_ok=True)
-# 修改：不再自动创建DATA_DIR，因为数据现在存储在data/processed目录下
-os.makedirs("data/processed", exist_ok=True)
-os.makedirs("factor_results", exist_ok=True)  # 因子分析结果目录
->>>>>>> 9c0a228 (因子分析初版提交)

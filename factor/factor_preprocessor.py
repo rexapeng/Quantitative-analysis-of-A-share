@@ -1,7 +1,8 @@
 import pandas as pd
 import numpy as np
+from typing import List
 from sklearn.preprocessing import StandardScaler
-from logger_config import data_logger
+from config.logger_config import data_logger
 
 class FactorPreprocessor:
     """
@@ -25,11 +26,11 @@ class FactorPreprocessor:
         """
         processed_df = df.copy()
         
-        # 获取因子列（排除基本的价格和成交量列）
-        basic_cols = ['open', 'high', 'low', 'close', 'volume', 'preclose', 'turn', 'pctChg']
+        # 获取因子列（排除基本的价格和成交量列，以及股票代码和日期列）
+        basic_cols = ['open', 'high', 'low', 'close', 'volume', 'preclose', 'turn', 'pctChg', 'code', 'stock', 'ten_day_return']
         factor_cols = [col for col in df.columns if col not in basic_cols and col != 'date']
         
-        self.logger.info(f"开始预处理{len(factor_cols)}个因子，方法: {method}")
+        # 去掉单只股票的预处理开始日志，在汇总时统一显示
         
         if method == 'standard':
             processed_df = self._standardize(processed_df, factor_cols)
@@ -38,7 +39,7 @@ class FactorPreprocessor:
         elif method == 'rank':
             processed_df = self._rank_transform(processed_df, factor_cols)
             
-        self.logger.info("因子预处理完成")
+        # 去掉单只股票的预处理完成日志，在汇总时统一显示
         return processed_df
     
     def _standardize(self, df: pd.DataFrame, factor_cols: List[str]) -> pd.DataFrame:

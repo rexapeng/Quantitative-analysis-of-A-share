@@ -1,8 +1,9 @@
 import pandas as pd
 import numpy as np
+from typing import Dict, List
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import StandardScaler
-from logger_config import data_logger
+from config.logger_config import data_logger
 
 class FactorCombiner:
     """
@@ -33,6 +34,7 @@ class FactorCombiner:
             weights = factor_weights
             
         # 标准化因子
+        self.logger.info("开始标准化因子数据...")
         scaler = StandardScaler()
         factor_data = df[factors].dropna()
         scaled_factors = pd.DataFrame(
@@ -40,6 +42,7 @@ class FactorCombiner:
             columns=factors,
             index=factor_data.index
         )
+        self.logger.info(f"因子标准化完成，处理了{len(factor_data)}条有效数据")
         
         # 加权合成
         combined_factor = pd.Series(0, index=scaled_factors.index)
@@ -65,19 +68,25 @@ class FactorCombiner:
         合成因子序列
         """
         # 准备数据
+        self.logger.info("开始准备回归模型数据...")
         data = df[factors + [target_col]].dropna()
         X = data[factors]
         y = data[target_col]
+        self.logger.info(f"回归数据准备完成，处理了{len(data)}条有效数据")
         
         # 标准化
+        self.logger.info("开始标准化回归数据...")
         scaler_X = StandardScaler()
         scaler_y = StandardScaler()
         X_scaled = scaler_X.fit_transform(X)
         y_scaled = scaler_y.fit_transform(y.values.reshape(-1, 1)).flatten()
+        self.logger.info("数据标准化完成")
         
         # 回归
+        self.logger.info("开始训练回归模型...")
         model = LinearRegression()
         model.fit(X_scaled, y_scaled)
+        self.logger.info("回归模型训练完成")
         
         # 合成因子
         combined_factor = pd.Series(

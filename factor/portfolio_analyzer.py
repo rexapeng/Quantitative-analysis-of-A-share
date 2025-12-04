@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from typing import Dict, List
-from logger_config import data_logger
+from config.logger_config import data_logger
 
 class PortfolioAnalyzer:
     """
@@ -31,9 +31,12 @@ class PortfolioAnalyzer:
         portfolio_df = df.copy()
         
         # 去除因子为空的行
+        self.logger.info(f"开始构建因子组合，因子: {factor}")
         portfolio_df = portfolio_df.dropna(subset=[factor])
+        self.logger.info(f"去除空值后，剩余{len(portfolio_df)}条数据")
         
         # 按因子值分组
+        self.logger.info(f"开始将数据分为{n_quantiles}个组合")
         portfolio_df['portfolio'] = pd.qcut(
             portfolio_df[factor], 
             q=n_quantiles, 
@@ -46,7 +49,7 @@ class PortfolioAnalyzer:
     
     def calculate_portfolio_returns(self, df: pd.DataFrame, 
                                   portfolio_col: str = 'portfolio',
-                                  return_col: str = 'pctChg') -> pd.DataFrame:
+                                  return_col: str = 'ten_day_return') -> pd.DataFrame:
         """
         计算各组合的收益率
         
@@ -58,7 +61,8 @@ class PortfolioAnalyzer:
         Returns:
         各组合收益率统计
         """
-        portfolio_returns = df.groupby(portfolio_col)[return_col].agg([
+        # 使用observed=True参数解决FutureWarning警告
+        portfolio_returns = df.groupby(portfolio_col, observed=True)[return_col].agg([
             'mean', 'std', 'count'
         ]).rename(columns={'mean': 'avg_return', 'std': 'volatility'})
         
@@ -70,7 +74,7 @@ class PortfolioAnalyzer:
         return portfolio_returns
     
     def calculate_ic_metrics(self, df: pd.DataFrame, factor: str, 
-                           return_col: str = 'pctChg') -> Dict:
+                           return_col: str = 'ten_day_return') -> Dict:
         """
         计算因子IC相关指标
         
