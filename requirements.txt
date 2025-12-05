@@ -1,7 +1,4 @@
 <<<<<<< HEAD
-项目的Python依赖库说明
-<<<<<<< HEAD
-
 # 数据分析和量化交易
 backtrader
 pandas
@@ -10,12 +7,15 @@ matplotlib
 seaborn
 scipy
 
+# Qlib库 - 端到端量化分析框架
+qlib
+
 # 数据获取和处理
 baostock
 requests
 
 # 进度条
- tqdm
+tqdm
 
 # 日志和配置
 logging
@@ -23,10 +23,3 @@ logging
 # 其他
 click
 colorama
-=======
-# 添加Alphalens依赖
-alphalens==0.4.0
->>>>>>> 9c0a228 (因子分析初版提交)
-=======
-项目的Python依赖库说明
->>>>>>> b9d8c85 (基本面数据获取初版提交)

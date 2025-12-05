@@ -10,9 +10,18 @@ from utils.plotter import Plotter
 from config.logger_config import main_logger
 from config.config import PLOT_ENABLE, BACKTEST_CONFIG, SMA_CONFIG, RSI_SMA_CONFIG, STOCK_SELECTION_CONFIG, RESULT_DIR
 
+# 导入因子分析模块
+from factor.factor_main import run_factor_analysis
+
 def main():
     """主程序入口"""
     try:
+        # 检查是否运行因子分析
+        if len(sys.argv) > 1 and sys.argv[1] == 'factor':
+            print("=== 运行因子分析 ===")
+            run_factor_analysis()
+            return
+        
         # 初始化回测引擎
         backtest_engine = BacktestEngine()
         
@@ -49,7 +58,7 @@ def main():
         print(f"详细报告已保存至: {RESULT_DIR}/")
         
     except Exception as e:
-        print(f"回测过程中发生错误: {str(e)}")
+        print(f"程序运行过程中发生错误: {str(e)}")
         import traceback
         traceback.print_exc()
 

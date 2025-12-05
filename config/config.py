@@ -143,7 +143,8 @@ INDEX_COMPONENTS = {
 FACTOR_ANALYSIS_SCOPE = {
     'scope_type': 'index_components',  # 分析范围类型: 'single_stock' 或 'index_components'
     'single_stock': 'sh.600036',   # 单只股票代码
-    'index_code': 'hs300'          # 指数代码，当scope_type为'index_components'时有效
+    'index_code': 'hs300',         # 指数代码，当scope_type为'index_components'时有效
+    'use_qlib': False              # 是否使用Qlib进行端到端因子分析
 }
 
 if __name__ == "__main__":
@@ -151,4 +152,3 @@ if __name__ == "__main__":
     print(f"数据目录: {DATA_DIR}")
     print(f"原始数据目录: {RAW_DATA_DIR}")
     print(f"清洗后数据目录: {CLEANED_DATA_DIR}")
-

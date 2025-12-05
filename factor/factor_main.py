@@ -21,6 +21,8 @@ from factor.factor_preprocessor import FactorPreprocessor
 from factor.factor_analyzer import FactorAnalyzer
 from factor.factor_combiner import FactorCombiner
 from factor.portfolio_analyzer import PortfolioAnalyzer
+# 导入Qlib因子分析器
+from factor.qlib_factor_analyzer import QlibFactorAnalyzer
 
 # 导入日志
 from config.logger_config import data_logger
@@ -45,7 +47,13 @@ def run_factor_analysis():
     current_datetime = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     current_date = datetime.datetime.now().strftime("%Y%m%d")
     
-    if scope_type == 'single_stock':
+    # 检查是否使用Qlib进行因子分析
+    use_qlib = FACTOR_ANALYSIS_SCOPE.get('use_qlib', False)
+    
+    if use_qlib:
+        # 使用Qlib进行端到端因子分析
+        run_qlib_factor_analysis(current_date)
+    elif scope_type == 'single_stock':
         # 单只股票分析模式
         stock_code = FACTOR_ANALYSIS_SCOPE.get('single_stock', SINGLE_STOCK)
         run_single_stock_analysis(stock_code, current_date)
@@ -57,6 +65,71 @@ def run_factor_analysis():
         data_logger.error(f"无效的分析范围类型: {scope_type}")
     
     data_logger.info("因子分析流程完成")
+
+def run_qlib_factor_analysis(current_date):
+    """
+    使用Qlib库进行端到端因子分析
+    """
+    data_logger.info("开始使用Qlib进行端到端因子分析")
+    
+    try:
+        # 创建Qlib因子分析器实例
+        analyzer = QlibFactorAnalyzer()
+        
+        # 运行端到端分析
+        results = analyzer.run_end_to_end_analysis(
+            instruments="csi300",  # 使用沪深300成分股
+            start_time="2015-01-01",
+            end_time="2020-12-31"
+        )
+        
+        # 保存分析结果
+        output_dir = os.path.join(os.path.dirname(__file__), 'output', 'qlib_reports')
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # 保存因子分析结果
+        factor_analysis_file = os.path.join(output_dir, f"qlib_factor_analysis_{current_date}.json")
+        import json
+        with open(factor_analysis_file, 'w', encoding='utf-8') as f:
+            # 转换numpy类型为Python原生类型
+            def convert_numpy(obj):
+                if isinstance(obj, np.ndarray):
+                    return obj.tolist()
+                elif isinstance(obj, (np.float64, np.float32)):
+                    return float(obj)
+                elif isinstance(obj, (np.int64, np.int32)):
+                    return int(obj)
+                elif isinstance(obj, dict):
+                    return {k: convert_numpy(v) for k, v in obj.items()}
+                elif isinstance(obj, list):
+                    return [convert_numpy(item) for item in obj]
+                return obj
+            
+            json.dump(convert_numpy(results), f, indent=2, ensure_ascii=False)
+        
+        data_logger.info(f"Qlib因子分析结果保存到: {factor_analysis_file}")
+        
+        # 保存回测结果到CSV
+        backtest_file = os.path.join(output_dir, f"qlib_backtest_results_{current_date}.csv")
+        if 'backtest_result' in results:
+            backtest_df = pd.DataFrame(results['backtest_result'], index=[0])
+            backtest_df.to_csv(backtest_file, index=False)
+            data_logger.info(f"Qlib回测结果保存到: {backtest_file}")
+        
+        print("\n=== Qlib因子分析完成 ===")
+        print("回测结果:")
+        if 'backtest_result' in results:
+            for key, value in results['backtest_result'].items():
+                print(f"{key}: {value}")
+        
+    except Exception as e:
+        data_logger.error(f"Qlib因子分析失败: {e}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        analyzer.close()
+    
+    data_logger.info("Qlib因子分析流程完成")
 
 def run_single_stock_analysis(stock_code, current_date):
     """
