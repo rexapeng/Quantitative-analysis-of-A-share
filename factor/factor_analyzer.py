@@ -29,26 +29,34 @@ class FactorAnalyzer:
             self.logger.error("输入数据为空，无法进行因子分析")
             return {}
             
-        # 确保日期是索引或列
-        if 'date' in df.columns:
+        # 确保日期是索引或列，避免同时存在日期列和日期索引级别
+        has_date_column = 'date' in df.columns
+        has_date_index = 'date' in df.index.names
+        
+        # 如果date同时是索引和列，移除date列以避免歧义
+        if has_date_column and has_date_index:
+            df = df.drop('date', axis=1)
+            has_date_column = False
+            self.logger.info("数据同时包含date列和date索引级别，已移除date列")
+        
+        # 处理日期信息
+        if has_date_column:
             try:
                 df['date'] = pd.to_datetime(df['date'])
             except Exception as e:
                 self.logger.error(f"转换日期列失败: {e}")
-        elif 'date' in df.index.names:
-            # 检查是否为复合索引
-            if len(df.index.names) > 1:
-                # 如果是复合索引，检查date是否是其中一个索引
-                if 'date' in df.index.names:
-                    # 提取date索引作为单独的列
-                    df.reset_index(level='date', inplace=True)
-                    try:
-                        df['date'] = pd.to_datetime(df['date'])
-                    except Exception as e:
-                        self.logger.error(f"转换日期索引失败: {e}")
-            else:
-                # 单一索引情况
+        elif has_date_index:
+            # 单一索引情况
+            if len(df.index.names) == 1:
                 df.index = pd.to_datetime(df.index)
+            # 复合索引情况 - 不创建临时date列，后续操作通过索引访问
+            else:
+                try:
+                    # 确保date索引是datetime类型
+                    df = df.reorder_levels(['date', 'code']) if 'code' in df.index.names else df
+                    df.index.set_levels(pd.to_datetime(df.index.get_level_values('date')), level='date', inplace=True)
+                except Exception as e:
+                    self.logger.error(f"转换日期索引失败: {e}")
         else:
             self.logger.error("数据中缺少日期信息")
             return {}
@@ -67,11 +75,17 @@ class FactorAnalyzer:
                 # 确保数据按股票和日期排序
                 try:
                     if 'code' in df.columns:
-                        df = df.sort_values(['code', 'date'])
+                        if 'date' in df.columns:
+                            df = df.sort_values(['code', 'date'])
+                        elif 'date' in df.index.names:
+                            df = df.sort_values(['code']).sort_index(level='date')
                         # 使用shift(-period)计算未来收益率
                         df[fwd_return_col] = df.groupby('code')['close'].pct_change(periods=period).shift(-period)
                     elif 'stock' in df.columns:
-                        df = df.sort_values(['stock', 'date'])
+                        if 'date' in df.columns:
+                            df = df.sort_values(['stock', 'date'])
+                        elif 'date' in df.index.names:
+                            df = df.sort_values(['stock']).sort_index(level='date')
                         # 使用shift(-period)计算未来收益率
                         df[fwd_return_col] = df.groupby('stock')['close'].pct_change(periods=period).shift(-period)
                     elif 'code' in df.index.names:
@@ -164,28 +178,54 @@ class FactorAnalyzer:
                             self.logger.error("数据中缺少date列或date索引")
                             continue
                         
-                        # 遍历每个日期
-                        for date, date_data in df.groupby(level='date' if 'date' in df.index.names else 'date'):
-                            valid_data = date_data[[factor, fwd_return_col]].dropna()
-                            
-                            if len(valid_data) < 20:  # 当天股票数量太少则跳过
-                                continue
-                            
-                            # 检查数据是否为恒定值
-                            if valid_data[factor].nunique() == 1 or valid_data[fwd_return_col].nunique() == 1:
-                                # 对于KDJ_J_LESS_THAN_0因子，记录更多详细信息
-                                if factor == 'KDJ_J_LESS_THAN_0':
-                                    self.logger.info(f"日期{date}: 因子{factor}值为恒定值={valid_data[factor].nunique()}, 唯一值={valid_data[factor].unique()[0]}, 有效股票数={len(valid_data)}")
-                                continue
-                            
-                            # 计算当天的IC值
-                            pearson_ic, _ = pearsonr(valid_data[factor], valid_data[fwd_return_col])
-                            spearman_corr, _ = spearmanr(valid_data[factor], valid_data[fwd_return_col])
-                            
-                            if not np.isnan(pearson_ic):
-                                daily_ics.append(pearson_ic)
-                            if not np.isnan(spearman_corr):
-                                daily_spearmans.append(spearman_corr)
+                        # 遍历每个日期，先检查date是索引还是列
+                        if 'date' in df.columns:
+                            for date, date_data in df.groupby('date'):
+                                valid_data = date_data[[factor, fwd_return_col]].dropna()
+                                
+                                if len(valid_data) < 20:  # 当天股票数量太少则跳过
+                                    continue
+                                
+                                # 检查数据是否为恒定值
+                                if valid_data[factor].nunique() == 1 or valid_data[fwd_return_col].nunique() == 1:
+                                    # 对于KDJ_J_LESS_THAN_0因子，记录更多详细信息
+                                    if factor == 'KDJ_J_LESS_THAN_0':
+                                        self.logger.info(f"日期{date}: 因子{factor}值为恒定值={valid_data[factor].nunique()}, 唯一值={valid_data[factor].unique()[0]}, 有效股票数={len(valid_data)}")
+                                    continue
+                                
+                                # 计算当天的IC值
+                                pearson_ic, _ = pearsonr(valid_data[factor], valid_data[fwd_return_col])
+                                spearman_corr, _ = spearmanr(valid_data[factor], valid_data[fwd_return_col])
+                                
+                                if not np.isnan(pearson_ic):
+                                    daily_ics.append(pearson_ic)
+                                if not np.isnan(spearman_corr):
+                                    daily_spearmans.append(spearman_corr)
+                        elif 'date' in df.index.names:
+                            for date, date_data in df.groupby(level='date'):
+                                valid_data = date_data[[factor, fwd_return_col]].dropna()
+                                
+                                if len(valid_data) < 20:  # 当天股票数量太少则跳过
+                                    continue
+                                
+                                # 检查数据是否为恒定值
+                                if valid_data[factor].nunique() == 1 or valid_data[fwd_return_col].nunique() == 1:
+                                    # 对于KDJ_J_LESS_THAN_0因子，记录更多详细信息
+                                    if factor == 'KDJ_J_LESS_THAN_0':
+                                        self.logger.info(f"日期{date}: 因子{factor}值为恒定值={valid_data[factor].nunique()}, 唯一值={valid_data[factor].unique()[0]}, 有效股票数={len(valid_data)}")
+                                    continue
+                                
+                                # 计算当天的IC值
+                                pearson_ic, _ = pearsonr(valid_data[factor], valid_data[fwd_return_col])
+                                spearman_corr, _ = spearmanr(valid_data[factor], valid_data[fwd_return_col])
+                                
+                                if not np.isnan(pearson_ic):
+                                    daily_ics.append(pearson_ic)
+                                if not np.isnan(spearman_corr):
+                                    daily_spearmans.append(spearman_corr)
+                        else:
+                            self.logger.error("数据中缺少date列或date索引")
+                            continue
                     
                     self.logger.info(f"因子{factor}的有效IC值数量: {len(daily_ics)}, 有效Spearman值数量: {len(daily_spearmans)}")
                     

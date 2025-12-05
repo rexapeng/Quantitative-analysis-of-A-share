@@ -33,6 +33,18 @@ def run_factor_analysis():
     """
     data_logger.info("开始因子分析流程")
     
+    # 检查用户是否在配置中选择了特定的收益率周期
+    user_selected_period = FACTOR_CONFIG.get('user_selected_period')
+    if user_selected_period is not None:
+        if 1 <= user_selected_period <= 60:
+            data_logger.info(f"使用用户选择的收益率周期: {user_selected_period}日")
+            # 更新forward_periods为用户选择的周期
+            FACTOR_CONFIG['forward_periods'] = [user_selected_period]
+        else:
+            data_logger.warning(f"用户选择的收益率周期 {user_selected_period} 无效（应为1-60日），将使用默认周期")
+    else:
+        data_logger.info(f"使用默认的收益率周期: {FACTOR_CONFIG['forward_periods']}")
+    
     # 获取分析范围配置
     scope_type = FACTOR_ANALYSIS_SCOPE['scope_type']
     
@@ -300,10 +312,24 @@ def run_index_components_analysis(index_code, current_date):
     # 复制一份数据用于标准化
     standardized_df = combined_df.copy()
     
+    # 检查并移除重复的(date, code)对
+    data_logger.info(f"标准化前数据行数: {len(standardized_df)}")
+    standardized_df = standardized_df.drop_duplicates(subset=['date', 'code'])
+    data_logger.info(f"移除重复项后数据行数: {len(standardized_df)}")
+    
     # 按日期分组，对每个日期的所有股票进行标准化
     for factor in tqdm(factor_cols, desc="进行横截面标准化"):
-        # 使用rank转换代替standardize，因为rank转换更适合横截面比较
-        standardized_df[factor] = standardized_df.groupby('date')[factor].rank(pct=True)
+        # 检查是否为二值因子（只有0和1两个值）
+        unique_values = standardized_df[factor].unique()
+        is_binary_factor = len(unique_values) == 2 and set(unique_values).issubset({0, 1})
+        
+        if is_binary_factor:
+            # 二值因子跳过标准化，保持原始值
+            data_logger.info(f"因子{factor}是二值因子，跳过横截面标准化")
+            continue
+        else:
+            # 使用rank转换代替standardize，因为rank转换更适合横截面比较
+            standardized_df[factor] = standardized_df.groupby('date')[factor].rank(pct=True)
     
     data_logger.info(f"横截面标准化完成")
     
@@ -433,6 +459,11 @@ def run_index_components_analysis(index_code, current_date):
         portfolio_analyzer = PortfolioAnalyzer()
         
         # 使用合成因子构建组合
+        # 确保ic_combined是Series类型
+        if not isinstance(ic_combined, pd.Series):
+            ic_combined = pd.Series(ic_combined)
+        
+        # 直接赋值，因为现在索引应该完全匹配
         standardized_df['combined_factor'] = ic_combined
         portfolio_df = portfolio_analyzer.construct_factor_portfolio(
             standardized_df, 
@@ -442,13 +473,18 @@ def run_index_components_analysis(index_code, current_date):
         
         # 保存Q1-Q5组合的具体信息（包含股票代码、日期、因子值和组合标签）
         portfolio_details_file = os.path.join(output_dir, f"{index_code}_q1_q5_portfolios_{current_date}.csv")
+        
+        # 处理索引和列名冲突问题
+        export_df = portfolio_df.copy()
+        # 如果'date'列已经存在但索引中也有'date'级别，先删除列
+        if 'date' in export_df.columns and 'date' in export_df.index.names:
+            export_df = export_df.drop('date', axis=1)
         # 重置索引以包含日期和代码信息
-        portfolio_df.reset_index(inplace=True)
+        export_df.reset_index(inplace=True)
         # 保存到CSV文件
-        portfolio_df.to_csv(portfolio_details_file, index=True)
+        export_df.to_csv(portfolio_details_file, index=True)
         data_logger.info(f"Q1-Q5组合详情保存到: {portfolio_details_file}")
-        # 重新设置索引以便后续计算
-        portfolio_df.set_index(['date', 'code'], inplace=True)
+        # 保持原始portfolio_df的索引不变，无需重新设置
         
         # 计算组合收益
         portfolio_returns = portfolio_analyzer.calculate_portfolio_returns(portfolio_df)
@@ -466,6 +502,9 @@ def run_index_components_analysis(index_code, current_date):
         
         # 重置索引以包含日期和代码信息
         export_df = portfolio_df.copy()
+        # 如果'date'列已经存在但索引中也有'date'级别，先删除列
+        if 'date' in export_df.columns and 'date' in export_df.index.names:
+            export_df = export_df.drop('date', axis=1)
         export_df = export_df.reset_index()
         
         # 只保存必要的列以减少文件大小

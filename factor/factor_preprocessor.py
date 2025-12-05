@@ -48,13 +48,21 @@ class FactorPreprocessor:
         
         for col in factor_cols:
             if col in processed_df.columns:
-                # 去除极值（MAD方法）
-                processed_df[col] = self._remove_outliers_mad(processed_df[col])
+                # 检查是否为二值因子（只有0和1两个值）
+                unique_values = processed_df[col].unique()
+                is_binary_factor = len(unique_values) == 2 and set(unique_values).issubset({0, 1})
                 
-                # 标准化
-                scaler = StandardScaler()
-                processed_df[col] = scaler.fit_transform(processed_df[[col]])
-                self.scalers[col] = scaler
+                if is_binary_factor:
+                    # 二值因子跳过标准化，保持原始值
+                    continue
+                else:
+                    # 去除极值（MAD方法）
+                    processed_df[col] = self._remove_outliers_mad(processed_df[col])
+                    
+                    # 标准化
+                    scaler = StandardScaler()
+                    processed_df[col] = scaler.fit_transform(processed_df[[col]])
+                    self.scalers[col] = scaler
                 
         return processed_df
     

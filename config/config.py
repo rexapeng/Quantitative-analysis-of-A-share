@@ -119,10 +119,11 @@ DATA_CONFIG = {
 FACTOR_CONFIG = {
     'lookback_periods': [5, 10, 20, 60],  # 回看周期
     'moving_average_windows': [5, 10, 20, 30, 60],  # 均线窗口
-    'forward_periods': [1, 5, 10],  # 因子预测周期
+    'forward_periods': [1, 5, 10],  # 因子预测周期（默认值，会被user_selected_period覆盖）
     'analysis_window': 60,  # 滚动分析窗口
     'n_quantiles': 5,  # 分组数量
-    'preprocessing_method': 'standard'  # 预处理方法
+    'preprocessing_method': 'standard',  # 预处理方法
+    'user_selected_period': 5  # 用户选择的收益率周期（1-60日，None表示使用默认forward_periods）
 }
 
 # 单只股票分析配置
