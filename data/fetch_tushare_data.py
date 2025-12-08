@@ -21,9 +21,14 @@ sys.path.append(project_root)
 
 # 导入配置
 try:
-    from config.config import RAW_DATA_DIR, CLEANED_DATA_DIR
+    from config.config import DATA_DIRS, get_full_path
     from config.logger_config import data_logger
-except ImportError:
+    
+    # 使用统一的目录配置
+    RAW_DATA_DIR = get_full_path(DATA_DIRS['RAW'])
+    CLEANED_DATA_DIR = get_full_path(DATA_DIRS['PROCESSED'])
+except ImportError as e:
+    print(f"导入配置失败: {e}")
     # 如果无法导入配置，则使用默认值
     RAW_DATA_DIR = os.path.join(current_dir, 'raw')
     CLEANED_DATA_DIR = os.path.join(current_dir, 'processed')

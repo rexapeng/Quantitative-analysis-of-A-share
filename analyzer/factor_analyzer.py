@@ -5,21 +5,25 @@
 """
 
 # ---------------------- 配置部分 ----------------------
-# 测试范围: SZ50/HS300/ZZ500/ZZ1000/ZZ2000/INDIVIDUAL/ALL_A
-TEST_SCOPE = 'HS300'
+# 导入项目配置
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from config.config import FACTOR_ANALYSIS_CONFIG, get_full_path
+from config.logger_config import factor_analysis_logger
 
-# 单个股票代码 (仅当TEST_SCOPE为INDIVIDUAL时需要)
-INDIVIDUAL_STOCK = None
+# 从配置文件获取配置
+TEST_SCOPE = FACTOR_ANALYSIS_CONFIG['TEST_SCOPE']
+INDIVIDUAL_STOCK = FACTOR_ANALYSIS_CONFIG['INDIVIDUAL_STOCK']
+START_DATE = FACTOR_ANALYSIS_CONFIG['START_DATE']
+END_DATE = FACTOR_ANALYSIS_CONFIG['END_DATE']
+FORWARD_PERIOD = FACTOR_ANALYSIS_CONFIG['FORWARD_PERIOD']
+NORMALIZE_FACTOR = FACTOR_ANALYSIS_CONFIG['NORMALIZE_FACTOR']
+RESULT_DIR = FACTOR_ANALYSIS_CONFIG['RESULT_DIR']
+REPORT_DIR = FACTOR_ANALYSIS_CONFIG['REPORT_DIR']
 
-# 测试日期范围
-START_DATE = "2015-01-01"  # 格式: YYYY-MM-DD
-END_DATE = "2025-12-05"  # 格式: YYYY-MM-DD
-
-# 目标收益率周期
-FORWARD_PERIOD = 10
-
-# 是否进行因子横截面标准化
-NORMALIZE_FACTOR = True
+# 使用统一的日志记录器
+logger = factor_analysis_logger
 
 # ---------------------------------------------------
 
@@ -66,16 +70,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # 导入工具函数
 from factor_lib.utils import get_database_connection, load_stock_data
 
-# 设置日志
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('factor_analysis.log'),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
+# 日志记录器已从config.logger_config导入
 
 
 class FactorAnalyzer:
@@ -143,7 +138,7 @@ class FactorAnalyzer:
         
     def load_factor_data(self, factor_name, start_date=None, end_date=None, normalize=True):
         """
-        加载因子数据
+        加载因子数据（优化版）
         
         参数:
             factor_name: 因子名称
@@ -152,29 +147,48 @@ class FactorAnalyzer:
             normalize: 是否进行横截面标准化
         """
         try:
-            query = f"SELECT ts_code, trade_date, factor_value FROM factors WHERE factor_name = '{factor_name}'"
+            # 使用参数化查询提高安全性和性能
+            query = "SELECT ts_code, trade_date, factor_value FROM factors WHERE factor_name = ?"
+            params = [factor_name]
             
+            # 构建条件列表
             conditions = []
             if start_date:
-                conditions.append(f"trade_date >= '{start_date}'")
+                conditions.append("trade_date >= ?")
+                params.append(start_date)
             if end_date:
-                conditions.append(f"trade_date <= '{end_date}'")
+                conditions.append("trade_date <= ?")
+                params.append(end_date)
             
             # 添加测试范围过滤
             test_stocks = self.get_test_stocks()
             if test_stocks and len(test_stocks) > 0:
                 if len(test_stocks) == 1:
-                    conditions.append(f"ts_code = '{test_stocks[0]}'")
+                    conditions.append("ts_code = ?")
+                    params.append(test_stocks[0])
                 else:
-                    stocks_tuple = tuple(test_stocks)
-                    conditions.append(f"ts_code IN {stocks_tuple}")
+                    # 使用参数化的IN查询
+                    placeholders = ",".join(["?"] * len(test_stocks))
+                    conditions.append(f"ts_code IN ({placeholders})")
+                    params.extend(test_stocks)
             
             if conditions:
                 query += " AND " + " AND ".join(conditions)
             
-            self.factor_data = pd.read_sql_query(query, self.conn)
+            # 加载因子数据，使用chunked读取提高大查询性能
+            chunks = []
+            for chunk in pd.read_sql_query(query, self.conn, params=params, chunksize=100000):
+                chunks.append(chunk)
+            
+            if chunks:
+                self.factor_data = pd.concat(chunks, ignore_index=True)
+            else:
+                self.factor_data = pd.DataFrame()
+                return True
+            
+            # 转换日期类型并排序
             self.factor_data['trade_date'] = pd.to_datetime(self.factor_data['trade_date'])
-            self.factor_data = self.factor_data.sort_values(['ts_code', 'trade_date'])
+            self.factor_data = self.factor_data.sort_values(['trade_date', 'ts_code'])  # 按日期优先排序，便于后续按日期分组处理
             
             # 单因子标准化（时间序列标准化）
             self.time_series_normalize()
@@ -195,21 +209,18 @@ class FactorAnalyzer:
         """
         对因子数据进行时间序列标准化（单因子标准化）
         对每个股票的因子值在时间序列上进行标准化
+        优化：使用向量化操作替代apply，提高性能
         """
         if self.factor_data is None:
             logger.error("因子数据未加载，无法进行时间序列标准化")
             return
         
         try:
-            # 对每个股票进行时间序列标准化
-            def normalize(group):
-                mean = group['factor_value'].mean()
-                std = group['factor_value'].std()
-                if std > 0:
-                    group['factor_value'] = (group['factor_value'] - mean) / std
-                return group
+            # 使用向量化操作进行时间序列标准化
+            self.factor_data['factor_value'] = self.factor_data.groupby('ts_code')['factor_value'].transform(
+                lambda x: (x - x.mean()) / (x.std() if x.std() > 0 else 1)
+            )
             
-            self.factor_data = self.factor_data.groupby('ts_code', group_keys=False).apply(normalize).reset_index(drop=True)
             logger.info("因子数据时间序列标准化完成")
         except Exception as e:
             logger.error(f"因子数据时间序列标准化失败: {str(e)}")
@@ -217,21 +228,18 @@ class FactorAnalyzer:
     def cross_sectional_normalize(self):
         """
         对因子数据进行横截面标准化
+        优化：使用向量化操作替代apply，提高性能
         """
         if self.factor_data is None:
             logger.error("因子数据未加载，无法进行标准化")
             return
         
         try:
-            # 对每个交易日进行横截面标准化
-            def normalize(group):
-                mean = group['factor_value'].mean()
-                std = group['factor_value'].std()
-                if std > 0:
-                    group['factor_value'] = (group['factor_value'] - mean) / std
-                return group
+            # 使用向量化操作进行横截面标准化
+            self.factor_data['factor_value'] = self.factor_data.groupby('trade_date')['factor_value'].transform(
+                lambda x: (x - x.mean()) / (x.std() if x.std() > 0 else 1)
+            )
             
-            self.factor_data = self.factor_data.groupby('trade_date', group_keys=False).apply(normalize).reset_index(drop=True)
             logger.info("因子数据横截面标准化完成")
         except Exception as e:
             logger.error(f"因子数据标准化失败: {str(e)}")
@@ -239,6 +247,7 @@ class FactorAnalyzer:
     def load_return_data(self, start_date=None, end_date=None, forward_period=1):
         """
         加载收益率数据
+        优化：使用参数化查询，批量处理，减少内存使用
         
         参数:
             start_date: 开始日期
@@ -246,28 +255,42 @@ class FactorAnalyzer:
             forward_period: 向前预测的周期数
         """
         try:
-            # 加载原始价格数据
-            price_query = "SELECT ts_code, trade_date, close FROM daily_quotes"
-            
+            # 使用参数化查询加载原始价格数据
+            query = "SELECT ts_code, trade_date, close FROM daily_quotes"
+            params = []
             conditions = []
+            
             if start_date:
-                conditions.append(f"trade_date >= '{start_date}'")
+                conditions.append("trade_date >= ?")
+                params.append(start_date)
             if end_date:
-                conditions.append(f"trade_date <= '{end_date}'")
+                conditions.append("trade_date <= ?")
+                params.append(end_date)
             
             # 添加测试范围过滤
             test_stocks = self.get_test_stocks()
             if test_stocks and len(test_stocks) > 0:
                 if len(test_stocks) == 1:
-                    conditions.append(f"ts_code = '{test_stocks[0]}'")
+                    conditions.append("ts_code = ?")
+                    params.append(test_stocks[0])
                 else:
-                    stocks_tuple = tuple(test_stocks)
-                    conditions.append(f"ts_code IN {stocks_tuple}")
+                    placeholders = ",".join(["?"] * len(test_stocks))
+                    conditions.append(f"ts_code IN ({placeholders})")
+                    params.extend(test_stocks)
             
             if conditions:
-                price_query += " WHERE " + " AND ".join(conditions)
+                query += " WHERE " + " AND ".join(conditions)
             
-            price_data = pd.read_sql_query(price_query, self.conn)
+            # 使用chunked读取减少内存占用
+            chunks = []
+            for chunk in pd.read_sql_query(query, self.conn, params=params, chunksize=100000):
+                chunks.append(chunk)
+            
+            if not chunks:
+                self.return_data = pd.DataFrame()
+                return True
+            
+            price_data = pd.concat(chunks, ignore_index=True)
             price_data['trade_date'] = pd.to_datetime(price_data['trade_date'])
             price_data = price_data.sort_values(['ts_code', 'trade_date'])
             
@@ -279,6 +302,10 @@ class FactorAnalyzer:
             price_data = price_data.dropna(subset=['return'])
             
             self.return_data = price_data[['ts_code', 'trade_date', 'return']]
+            
+            # 释放内存
+            del price_data
+            
             logger.info(f"成功加载收益率数据: {len(self.return_data)} 条")
             return True
         except Exception as e:
@@ -302,24 +329,30 @@ class FactorAnalyzer:
         
         try:
             # 合并因子数据和收益率数据
+            # 优化：只保留需要的列，减少内存使用
             merged_data = pd.merge(
-                self.factor_data,
-                self.return_data,
+                self.factor_data[['ts_code', 'trade_date', 'factor_value']],
+                self.return_data[['ts_code', 'trade_date', 'return']],
                 on=['ts_code', 'trade_date'],
                 how='inner'
             )
             
             logger.info(f"合并后数据量: {len(merged_data)} 条")
             
-            # 计算每日Rank IC
+            # 预计算秩以提高效率
+            merged_data['factor_rank'] = merged_data.groupby('trade_date')['factor_value'].rank()
+            merged_data['return_rank'] = merged_data.groupby('trade_date')['return'].rank()
+            
+            # 计算每日Rank IC（使用皮尔逊相关系数计算秩相关）
             def calc_daily_rank_ic(group):
                 if len(group) < 2:
-                    return pd.Series({'rank_ic': np.nan})
+                    return pd.Series({'rank_ic': np.nan, 'p_value': np.nan})
                 
                 # 计算秩相关系数
-                rank_ic, p_value = spearmanr(group['factor_value'], group['return'])
+                rank_ic, p_value = spearmanr(group['factor_rank'], group['return_rank'])
                 return pd.Series({'rank_ic': rank_ic, 'p_value': p_value})
             
+            # 使用groupby + apply计算每日Rank IC
             daily_rank_ic = merged_data.groupby('trade_date', group_keys=False).apply(calc_daily_rank_ic).reset_index()
             daily_rank_ic = daily_rank_ic.sort_values('trade_date')
             

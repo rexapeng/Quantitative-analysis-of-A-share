@@ -17,46 +17,24 @@ from datetime import datetime
 # 添加项目根目录到Python路径
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# 导入因子库
+# 导入因子库基础类和工具函数
 from factor_lib import (
-    # 基础类
     Factor, FactorManager,
-    
-    # 价格类因子
-    ClosePriceFactor, HighPriceFactor, LowPriceFactor, OpenPriceFactor,
-    AveragePriceFactor, VWAPFactor, CloseToOpenRatioFactor, PriceRankFactor,
-    PriceDecayFactor, OpenToCloseChangeFactor, PriceMeanFactor,
-    
-    # 成交量类因子
-    VolumeFactor, AmountFactor, VolumeChangeRateFactor, AmountChangeRateFactor,
-    VolumeRankFactor, VolumeMeanFactor, VolumeStdFactor, VolumeToMeanFactor,
-    VolumeAmplitudeFactor, VolumeAccumulationFactor,
-    
-    # 波动性类因子
-    DailyReturnFactor, DailyAmplitudeFactor, VolatilityFactor, DownsideRiskFactor,
-    MaximumDrawdownFactor, SharpeRatioFactor, SkewnessFactor, KurtosisFactor,
-    
-    # 动量类因子
-    MomentumFactor, RSIFactor, MACDFactor, WilliamsRFactor, StochasticFactor,
-    RateOfChangeFactor,
-    
-    # 自定义因子
-    KDJ_J_Factor, MACD_DIFF_Factor,
-    
-    # 工具函数
+    get_all_factor_classes, get_factor_classes_by_category,
     get_database_connection, load_stock_data, clean_factor_data, create_factor_table
 )
 
 # 设置日志
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('calculate_factors.log'),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
+from config.logger_config import factor_calculation_logger
+from config.config import FACTOR_CALCULATION_CONFIG, get_full_path
+
+logger = factor_calculation_logger
+
+# 从配置文件获取配置
+START_DATE = FACTOR_CALCULATION_CONFIG['START_DATE']
+END_DATE = FACTOR_CALCULATION_CONFIG['END_DATE']
+BATCH_SIZE = FACTOR_CALCULATION_CONFIG['BATCH_SIZE']
+RESULT_DIR = FACTOR_CALCULATION_CONFIG['RESULT_DIR']
 
 
 def get_all_factors():
@@ -68,52 +46,49 @@ def get_all_factors():
     """
     factors = []
     
-    # 价格类因子
-    factors.append(ClosePriceFactor())
-    factors.append(HighPriceFactor())
-    factors.append(LowPriceFactor())
-    factors.append(OpenPriceFactor())
-    factors.append(AveragePriceFactor())
-    factors.append(VWAPFactor())
-    factors.append(CloseToOpenRatioFactor())
-    factors.append(PriceRankFactor(window=20))
-    factors.append(PriceDecayFactor(window=10))
-    factors.append(OpenToCloseChangeFactor())
-    factors.append(PriceMeanFactor(window=20))
+    # 获取所有因子类
+    factor_classes = get_all_factor_classes()
     
-    # 自定义因子
-    factors.append(KDJ_J_Factor())
-    factors.append(MACD_DIFF_Factor())
+    # 为不同类型的因子提供不同的窗口参数
+    window_params = {
+        'VolumeChangeRateFactor': [5, 10, 20],
+        'AmountChangeRateFactor': [5, 10, 20],
+        'VolumeRankFactor': [10, 20, 30],
+        'VolumeMeanFactor': [10, 20, 30],
+        'VolumeStdFactor': [10, 20, 30],
+        'VolumeToMeanFactor': [10, 20, 30],
+        'VolumeAmplitudeFactor': [10, 20, 30],
+        'MomentumFactor': [5, 10, 20, 30],
+        'RSIFactor': [6, 14, 24],
+        'WilliamsRFactor': [10, 20],
+        'StochasticFactor': [14, 20],
+        'RateOfChangeFactor': [5, 10, 20],
+        'BollingerBandsFactor': [20],
+        'AverageTrueRangeFactor': [14, 20],
+        'VolatilityFactor': [10, 20, 30],
+        'DownsideDeviationFactor': [20, 30],
+        'UlcerIndexFactor': [14, 20],
+        'HistoricalVolatilityFactor': [20, 30],
+        'ParkinsonVolatilityFactor': [10, 20]
+    }
     
-    # 成交量类因子
-    factors.append(VolumeFactor())
-    factors.append(AmountFactor())
-    factors.append(VolumeChangeRateFactor(window=5))
-    factors.append(AmountChangeRateFactor(window=5))
-    factors.append(VolumeRankFactor(window=20))
-    factors.append(VolumeMeanFactor(window=20))
-    factors.append(VolumeStdFactor(window=20))
-    factors.append(VolumeToMeanFactor(window=20))
-    factors.append(VolumeAmplitudeFactor(window=20))
-    factors.append(VolumeAccumulationFactor())
-    
-    # 波动性类因子
-    factors.append(DailyReturnFactor())
-    factors.append(DailyAmplitudeFactor())
-    factors.append(VolatilityFactor(window=20))
-    factors.append(DownsideRiskFactor(window=20))
-    factors.append(MaximumDrawdownFactor(window=20))
-    factors.append(SharpeRatioFactor(window=20, risk_free_rate=0.02))
-    factors.append(SkewnessFactor(window=20))
-    factors.append(KurtosisFactor(window=20))
-    
-    # 动量类因子
-    factors.append(MomentumFactor(window=20))
-    factors.append(RSIFactor(window=14))
-    factors.append(MACDFactor())
-    factors.append(WilliamsRFactor(window=14))
-    factors.append(StochasticFactor(window=14))
-    factors.append(RateOfChangeFactor(window=20))
+    # 创建因子实例
+    for factor_class in factor_classes:
+        class_name = factor_class.__name__
+        
+        # 为需要窗口参数的因子创建多个实例
+        if class_name in window_params:
+            for window in window_params[class_name]:
+                try:
+                    factors.append(factor_class(window=window))
+                except Exception as e:
+                    logger.warning(f"无法创建因子 {class_name}(window={window}): {e}")
+        else:
+            # 无参数或默认参数的因子
+            try:
+                factors.append(factor_class())
+            except Exception as e:
+                logger.warning(f"无法创建因子 {class_name}: {e}")
     
     logger.info(f"已初始化 {len(factors)} 个因子")
     return factors
