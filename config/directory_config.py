@@ -27,7 +27,7 @@ BASE_DIRS = {
 DATA_DIRS = {
     'RAW': os.path.join(BASE_DIRS['DATA'], 'raw'),
     'PROCESSED': os.path.join(BASE_DIRS['DATA'], 'processed'),
-    'DATABASE': os.path.join(BASE_DIRS['DATA'], 'databases')
+    'DATABASE': os.path.join(BASE_DIRS['DATA'], 'data')
 }
 
 # 报告目录细分

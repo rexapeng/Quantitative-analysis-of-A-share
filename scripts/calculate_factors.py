@@ -120,8 +120,8 @@ def calculate_all_factors():
         # 初始化因子
         factors = get_all_factors()
         
-        # 创建因子管理器
-        factor_manager = FactorManager()
+        # 创建因子管理器，启用并行计算
+        factor_manager = FactorManager(use_parallel=True)
         
         # 添加所有因子
         for factor in factors:
@@ -194,8 +194,12 @@ def calculate_selected_factors(factor_names=None):
         
         logger.info(f"已选择 {len(selected_factors)} 个因子进行计算")
         
-        # 创建因子管理器
-        factor_manager = FactorManager(selected_factors)
+        # 创建因子管理器，启用并行计算
+        factor_manager = FactorManager(use_parallel=True)
+        
+        # 添加选择的因子
+        for factor in selected_factors:
+            factor_manager.add_factor(factor)
         
         # 计算因子
         logger.info("开始计算因子...")

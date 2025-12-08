@@ -9,6 +9,20 @@ from .volume_factors import (
     VolumeAmplitudeFactor, VolumeAccumulationFactor
 )
 
+# 趋势类因子
+from .trend_factors import (
+    MA5Factor, MA10Factor, MA20Factor, MA50Factor, MA100Factor,
+    EMA5Factor, EMA12Factor, EMA20Factor, EMA26Factor, EMA50Factor, EMA100Factor, EMA200Factor,
+    SMA60Factor, SMA120Factor, SMA240Factor,
+    MACDFactor, MACD_SignalFactor, MACD_HistogramFactor, MACD_CrossoverFactor,
+    RSI3Factor, RSI7Factor, RSI14Factor, RSI21Factor, RSI28Factor,
+    ADXFactor, ADX20Factor, ADX28Factor,
+    ATRFactor, ATR7Factor, ATR20Factor,
+    BollingerBandFactor, ParabolicSARFactor,
+    CCI7Factor, CCI14Factor, CCI21Factor,
+    DMAFactor
+)
+
 # 波动性类因子
 from .volatility_factors import (
     BollingerBandsFactor, TrueRangeFactor, AverageTrueRangeFactor, 
@@ -24,17 +38,16 @@ from .momentum_factors import (
 
 # 形态类因子
 from .pattern_factors import (
-    DoubleBottomPatternFactor, DoubleTopPatternFactor,
-    HeadAndShouldersBottomPatternFactor, HeadAndShouldersTopPatternFactor,
-    TripleBottomPatternFactor, TripleTopPatternFactor,
-    CupAndHandlePatternFactor, InverseCupAndHandlePatternFactor,
-    VBottomPatternFactor, VTopPatternFactor,
-    AscendingTrianglePatternFactor, DescendingTrianglePatternFactor,
-    SymmetricalTrianglePatternFactor, AscendingWedgePatternFactor,
-    DescendingWedgePatternFactor, RectanglePatternFactor,
+    DoubleBottomFactor, DoubleTopFactor,
+    HeadShoulderBottomFactor, HeadShoulderTopFactor,
+    TripleBottomFactor, TripleTopFactor,
+    RoundBottomFactor, RoundTopFactor,
+    VBottomFactor, VTopFactor,
+    AscendingTriangleFactor, DescendingTriangleFactor,
+    SymmetricalTriangleFactor, AscendingWedgeFactor,
+    DescendingWedgeFactor, RectanglePatternFactor,
     GapPatternFactor, DojiPatternFactor,
-    HammerPatternFactor, ShootingStarPatternFactor,
-    MorningStarPatternFactor, EveningStarPatternFactor
+    HammerPatternFactor
 )
 
 # 自定义因子
@@ -59,6 +72,18 @@ __all__ = [
     'VolumeFactor', 'AmountFactor', 'VolumeChangeRateFactor', 'AmountChangeRateFactor',
     'VolumeRankFactor', 'VolumeMeanFactor', 'VolumeStdFactor', 'VolumeToMeanFactor',
     'VolumeAmplitudeFactor', 'VolumeAccumulationFactor',
+    
+    # 趋势类因子
+    'MA5Factor', 'MA10Factor', 'MA20Factor', 'MA50Factor', 'MA100Factor',
+    'EMA5Factor', 'EMA12Factor', 'EMA20Factor', 'EMA26Factor', 'EMA50Factor', 'EMA100Factor', 'EMA200Factor',
+    'SMA60Factor', 'SMA120Factor', 'SMA240Factor',
+    'MACDFactor', 'MACD_SignalFactor', 'MACD_HistogramFactor', 'MACD_CrossoverFactor',
+    'RSI3Factor', 'RSI7Factor', 'RSI14Factor', 'RSI21Factor', 'RSI28Factor',
+    'ADXFactor', 'ADX20Factor', 'ADX28Factor',
+    'ATRFactor', 'ATR7Factor', 'ATR20Factor',
+    'BollingerBandFactor', 'ParabolicSARFactor',
+    'CCI7Factor', 'CCI14Factor', 'CCI21Factor',
+    'DMAFactor',
     
     # 波动性类因子
     'BollingerBandsFactor', 'TrueRangeFactor', 'AverageTrueRangeFactor', 
@@ -137,6 +162,18 @@ def get_factor_classes_by_category():
         'momentum': [
             'MomentumFactor', 'RSIFactor', 'MACDFactor', 'WilliamsRFactor', 'StochasticFactor',
             'RateOfChangeFactor'
+        ],
+        'trend': [
+            'MA5Factor', 'MA10Factor', 'MA20Factor', 'MA50Factor', 'MA100Factor',
+            'EMA5Factor', 'EMA12Factor', 'EMA20Factor', 'EMA26Factor', 'EMA50Factor', 'EMA100Factor', 'EMA200Factor',
+            'SMA60Factor', 'SMA120Factor', 'SMA240Factor',
+            'MACD_SignalFactor', 'MACD_HistogramFactor', 'MACD_CrossoverFactor',
+            'RSI3Factor', 'RSI7Factor', 'RSI14Factor', 'RSI21Factor', 'RSI28Factor',
+            'ADXFactor', 'ADX20Factor', 'ADX28Factor',
+            'ATRFactor', 'ATR7Factor', 'ATR20Factor',
+            'BollingerBandFactor', 'ParabolicSARFactor',
+            'CCI7Factor', 'CCI14Factor', 'CCI21Factor',
+            'DMAFactor'
         ],
         'pattern': [
             'DoubleBottomPatternFactor', 'DoubleTopPatternFactor',

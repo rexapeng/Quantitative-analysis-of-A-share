@@ -19,6 +19,7 @@ START_DATE = FACTOR_ANALYSIS_CONFIG['START_DATE']
 END_DATE = FACTOR_ANALYSIS_CONFIG['END_DATE']
 FORWARD_PERIOD = FACTOR_ANALYSIS_CONFIG['FORWARD_PERIOD']
 NORMALIZE_FACTOR = FACTOR_ANALYSIS_CONFIG['NORMALIZE_FACTOR']
+GROUP_NUM = FACTOR_ANALYSIS_CONFIG['GROUP_NUM']
 RESULT_DIR = FACTOR_ANALYSIS_CONFIG['RESULT_DIR']
 REPORT_DIR = FACTOR_ANALYSIS_CONFIG['REPORT_DIR']
 
@@ -36,6 +37,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.stats import spearmanr
 from datetime import datetime
+import warnings
+
+# 抑制特定的FutureWarning
+warnings.filterwarnings('ignore', message='DataFrameGroupBy.apply operated on the grouping columns')
 
 # 设置pandas参数以抑制FutureWarning
 pd.options.mode.chained_assignment = None  # 关闭链式赋值警告
@@ -348,12 +353,20 @@ class FactorAnalyzer:
                 if len(group) < 2:
                     return pd.Series({'rank_ic': np.nan, 'p_value': np.nan})
                 
-                # 计算秩相关系数
-                rank_ic, p_value = spearmanr(group['factor_rank'], group['return_rank'])
-                return pd.Series({'rank_ic': rank_ic, 'p_value': p_value})
+                # 检查因子秩或收益率秩是否为恒定值
+                if group['factor_rank'].nunique() <= 1 or group['return_rank'].nunique() <= 1:
+                    return pd.Series({'rank_ic': np.nan, 'p_value': np.nan})
+                
+                try:
+                    # 计算秩相关系数
+                    rank_ic, p_value = spearmanr(group['factor_rank'], group['return_rank'])
+                    return pd.Series({'rank_ic': rank_ic, 'p_value': p_value})
+                except Exception as e:
+                    logger.warning(f"计算Rank IC时发生警告: {str(e)}")
+                    return pd.Series({'rank_ic': np.nan, 'p_value': np.nan})
             
             # 使用groupby + apply计算每日Rank IC
-            daily_rank_ic = merged_data.groupby('trade_date', group_keys=False).apply(calc_daily_rank_ic).reset_index()
+            daily_rank_ic = merged_data.groupby('trade_date', group_keys=False).apply(calc_daily_rank_ic, include_groups=False).reset_index()
             daily_rank_ic = daily_rank_ic.sort_values('trade_date')
             
             logger.info(f"Rank IC计算完成，共 {len(daily_rank_ic)} 个交易日")
@@ -459,10 +472,18 @@ class FactorAnalyzer:
             }
             
             logger.info(f"因子 {factor_name} 分析完成:")
-            logger.info(f"  平均Rank IC: {mean_rank_ic:.4f}")
-            logger.info(f"  Rank IC标准差: {std_rank_ic:.4f}")
-            logger.info(f"  IR: {ir:.4f}")
-            logger.info(f"  正相关天数比例: {positive_ratio:.2%}")
+            # 使用更安全的方式格式化输出，避免格式说明符错误
+            try:
+                logger.info(f"  平均Rank IC: {mean_rank_ic:.4f}")
+                logger.info(f"  Rank IC标准差: {std_rank_ic:.4f}")
+                logger.info(f"  IR: {ir:.4f}")
+                logger.info(f"  正相关天数比例: {positive_ratio:.2%}")
+            except Exception:
+                # 当值为NaN或None时使用备用输出方式
+                logger.info(f"  平均Rank IC: {mean_rank_ic}")
+                logger.info(f"  Rank IC标准差: {std_rank_ic}")
+                logger.info(f"  IR: {ir}")
+                logger.info(f"  正相关天数比例: {positive_ratio}")
             logger.info(f"  有效交易天数: {total_days}")
             
             return result
@@ -760,8 +781,8 @@ class FactorAnalyzer:
                 logger.error("因子数量不足，无法计算相关系数")
                 return None
             
-            # 计算相关系数矩阵
-            correlation_matrix = merged_factor_data[factor_columns].corr(method='pearson')
+            # 计算相关系数矩阵并保留两位小数
+            correlation_matrix = merged_factor_data[factor_columns].corr(method='pearson').round(2)
             logger.info(f"因子间相关系数矩阵计算完成")
             
             # 绘制相关系数热力图
@@ -793,23 +814,24 @@ class FactorAnalyzer:
             # 绘制热力图
             mask = np.triu(np.ones_like(correlation_matrix, dtype=bool))  # 遮盖上三角
             sns.heatmap(
-                correlation_matrix,
+                correlation_matrix.round(2),  # 保留两位小数
                 mask=mask,
                 annot=True,
                 cmap='coolwarm',
                 center=0,
-                fmt='.4f',
+                fmt='.2f',  # 显示两位小数
                 linewidths=0.5,
                 square=True,
                 cbar_kws={'shrink': 0.8},
-                annot_kws={'size': 8}  # 调整标注文字大小
+                annot_kws={'size': 6}  # 进一步减小标注文字大小
             )
             
-            # 调整坐标轴刻度字体大小
-            plt.tick_params(axis='both', labelsize=8)
+            # 调整坐标轴刻度字体大小和旋转角度
+            plt.xticks(rotation=45, ha='right', fontsize=7)  # 旋转x轴标签
+            plt.yticks(rotation=0, fontsize=7)  # 调整y轴标签字体大小
             
             # 设置图表标题和标签
-            plt.title('因子间相关系数矩阵', fontsize=16)
+            plt.title('因子间相关系数矩阵', fontsize=14)  # 减小标题字体大小
             plt.tight_layout()
             
             # 保存图片
@@ -888,7 +910,7 @@ def main():
                 analyzer.plot_ic_time_series(factor, result['rank_ic_data'])
                 
                 # 分组收益分析
-                analyzer.analyze_group_returns(factor, forward_period=FORWARD_PERIOD, start_date=START_DATE, end_date=END_DATE)
+                analyzer.analyze_group_returns(factor, num_groups=GROUP_NUM, forward_period=FORWARD_PERIOD, start_date=START_DATE, end_date=END_DATE)
                 
                 results.append(result)
                 logger.info(f"因子 {factor} 分析完成")

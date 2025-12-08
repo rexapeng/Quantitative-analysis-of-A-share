@@ -233,6 +233,7 @@ class FactorManager:
                         if result is not None and not result.empty:
                             results.append(result)
                             factor.data = result  # 保存计算结果到因子对象
+                            print(f"因子 {factor.name} 计算完成")
                     except Exception as e:
                         print(f"计算因子 {factor.name} 出错: {e}")
         else:
@@ -242,6 +243,7 @@ class FactorManager:
                     result = factor.calculate(data)
                     if result is not None and not result.empty:
                         results.append(result)
+                        print(f"因子 {factor.name} 计算完成")
                 except Exception as e:
                     print(f"计算因子 {factor.name} 出错: {e}")
         
@@ -279,23 +281,37 @@ class FactorManager:
             
             # 批量收集所有因子数据
             all_data_to_insert = []
+            error_factors = []
+            
             for factor in tqdm(self.factors, desc="准备存储数据"):
-                if factor.data is None or factor.data.empty:
-                    continue
-                
-                # 清洗因子数据
-                cleaned_data = clean_factor_data(factor.data, factor.name)
-                if cleaned_data is None or cleaned_data.empty:
-                    continue
-                
-                # 收集数据
-                for _, row in cleaned_data.iterrows():
-                    all_data_to_insert.append((
-                        row['ts_code'],
-                        row['trade_date'],
-                        factor.name,
-                        row[factor.name]
-                    ))
+                try:
+                    if factor.data is None or factor.data.empty:
+                        continue
+                    
+                    # 清洗因子数据
+                    cleaned_data = clean_factor_data(factor.data, factor.name)
+                    if cleaned_data is None or cleaned_data.empty:
+                        continue
+                    
+                    # 收集数据
+                    # 获取所有因子值列（排除ts_code和trade_date）
+                    factor_value_columns = [col for col in cleaned_data.columns if col not in ['ts_code', 'trade_date']]
+                    
+                    for _, row in cleaned_data.iterrows():
+                        for col in factor_value_columns:
+                            # 使用列名作为因子名称，例如：bb_20_2_width, bb_20_2_percent
+                            all_data_to_insert.append((
+                                row['ts_code'],
+                                row['trade_date'],
+                                col,
+                                row[col]
+                            ))
+                except Exception as e:
+                    print(f"处理因子 {factor.name} 时出错: {e}")
+                    error_factors.append(factor.name)
+            
+            if error_factors:
+                print(f"以下因子处理出错: {error_factors}")
             
             if not all_data_to_insert:
                 print("没有数据需要存储")
@@ -314,6 +330,8 @@ class FactorManager:
             return len(self.factors)
         except Exception as e:
             print(f"批量存储因子到数据库错误: {e}")
+            if error_factors:
+                print(f"出错的因子列表: {error_factors}")
             conn.rollback()
             return 0
 

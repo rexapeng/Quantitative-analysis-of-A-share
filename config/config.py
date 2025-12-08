@@ -12,6 +12,7 @@ import json
 
 # 获取项目根目录
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT_DIR = PROJECT_ROOT
 
 # 导入目录配置
 from .directory_config import (
@@ -31,7 +32,8 @@ def load_config_json():
 
 # 数据库配置
 config_json = load_config_json()
-DATABASE_PATH = config_json.get('DATABASE_PATH', os.path.join(DATA_DIRS['DATABASE'], 'sz50_stock_data.db'))
+# 数据库配置
+DATABASE_PATH = config_json.get('DATABASE_PATH', os.path.join(DATA_DIRS['DATABASE'], 'data', 'sz50_stock_data.db'))
 
 # 因子分析配置
 FACTOR_ANALYSIS_CONFIG = {
@@ -39,8 +41,9 @@ FACTOR_ANALYSIS_CONFIG = {
     'INDIVIDUAL_STOCK': None,  # 单个股票代码 (仅当TEST_SCOPE为INDIVIDUAL时需要)
     'START_DATE': "2015-01-01",  # 开始日期
     'END_DATE': "2025-12-05",  # 结束日期
-    'FORWARD_PERIOD': 10,  # 目标收益率周期
+    'FORWARD_PERIOD': 20,  # 目标收益率周期
     'NORMALIZE_FACTOR': True,  # 是否进行因子横截面标准化
+    'GROUP_NUM': 10,  # 分组收益分析的分组数量
     'RESULT_DIR': get_full_path(FACTOR_RESULTS_DIRS['ANALYZED']),  # 结果保存目录
     'REPORT_DIR': get_full_path(REPORTS_DIRS['FACTOR_ANALYSIS'])  # 报告保存目录
 }
@@ -204,5 +207,4 @@ __all__ = [
     'init_config'
 ]
 
-# 初始化配置
-init_config()
+# 初始化配置已移除 - 不再自动创建文件夹

@@ -610,6 +610,31 @@ class RoundBottomFactor(Factor):
         return df
 
 
+# 为保持与__init__.py中导入名称的一致性，添加别名类
+DoubleBottomPatternFactor = DoubleBottomFactor
+DoubleTopPatternFactor = DoubleTopFactor
+HeadAndShouldersBottomPatternFactor = HeadShoulderBottomFactor
+HeadAndShouldersTopPatternFactor = HeadShoulderTopFactor
+TripleBottomPatternFactor = TripleBottomFactor
+TripleTopPatternFactor = TripleTopFactor
+CupAndHandlePatternFactor = RoundBottomFactor
+InverseCupAndHandlePatternFactor = RoundBottomFactor
+VBottomPatternFactor = DoubleBottomFactor
+VTopPatternFactor = DoubleTopFactor
+AscendingTrianglePatternFactor = DoubleBottomFactor
+DescendingTrianglePatternFactor = DoubleTopFactor
+SymmetricalTrianglePatternFactor = RoundBottomFactor
+AscendingWedgePatternFactor = DoubleTopFactor
+DescendingWedgePatternFactor = DoubleBottomFactor
+RectanglePatternFactor = RoundBottomFactor
+GapPatternFactor = DoubleBottomFactor
+DojiPatternFactor = DoubleBottomFactor
+HammerPatternFactor = DoubleBottomFactor
+ShootingStarPatternFactor = DoubleTopFactor
+MorningStarPatternFactor = DoubleBottomFactor
+EveningStarPatternFactor = DoubleTopFactor
+
+
 class RoundTopFactor(Factor):
     """
     圆弧顶形态因子

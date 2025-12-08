@@ -7,18 +7,10 @@ import time
 from datetime import datetime
 import json
 
-# 设置日志
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('factor_calculation.log'),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
+# 导入项目的日志配置
+from config.logger_config import system_logger as logger
 
-def get_database_connection(config_file='config/config.json'):
+def get_database_connection(config_file=None):
     """
     获取数据库连接
     
@@ -31,11 +23,22 @@ def get_database_connection(config_file='config/config.json'):
     try:
         import sqlite3
         
+        # 获取项目根目录
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        
+        # 如果没有提供配置文件路径，使用默认路径
+        if config_file is None:
+            config_file = os.path.join(project_root, 'config', 'config.json')
+        
         # 读取配置文件
         with open(config_file, 'r') as f:
             config = json.load(f)
         
-        db_path = config.get('DATABASE_PATH', 'data/stock_data.db')
+        db_path = config.get('DATABASE_PATH', 'data/data/stock_data.db')
+        
+        # 如果数据库路径是相对路径，转换为绝对路径
+        if not os.path.isabs(db_path):
+            db_path = os.path.join(project_root, db_path)
         
         # 创建数据库目录（如果不存在）
         db_dir = os.path.dirname(db_path)
@@ -192,11 +195,25 @@ def clean_factor_data(data, factor_name):
     
     # 移除缺失值
     original_count = len(df)
-    df = df.dropna(subset=[factor_name])
+    
+    # 获取所有因子值列（以factor_name开头的列）
+    factor_value_columns = [col for col in df.columns if col.startswith(factor_name)]
+    
+    if factor_value_columns:
+        # 如果找到以factor_name开头的列，使用这些列来移除缺失值
+        df = df.dropna(subset=factor_value_columns, how='all')  # 只移除所有因子列都缺失的行
+    else:
+        # 否则使用factor_name列
+        try:
+            df = df.dropna(subset=[factor_name])
+        except KeyError:
+            logger.error(f"因子数据中没有找到列: {factor_name}")
+            return None
+    
     cleaned_count = len(df)
     
     if original_count != cleaned_count:
-        logger.info(f"移除了 {original_count - cleaned_count} 条缺失的因子数据")
+        logger.info(f"因子 {factor_name} 移除了 {original_count - cleaned_count} 条缺失的因子数据")
     
     return df
 
