@@ -84,3 +84,18 @@ factor_calculation_logger = create_logger('factor_calculation', 'FACTOR_CALCULAT
 factor_analysis_logger = create_logger('factor_analysis', 'FACTOR_ANALYSIS')
 backtest_logger = create_logger('backtest', 'BACKTEST')
 system_logger = create_logger('system', 'SYSTEM')
+
+# 兼容旧的get_logger接口
+def get_logger(name, log_type='SYSTEM', level=logging.INFO):
+    """
+    获取或创建日志记录器（兼容旧接口）
+    
+    参数:
+        name (str): 日志记录器的名称
+        log_type (str): 日志类型，对应LOGS_DIRS中的键
+        level (int): 日志级别
+    
+    返回:
+        logging.Logger: 配置好的日志记录器
+    """
+    return create_logger(name, log_type, level)

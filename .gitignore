@@ -11,6 +11,7 @@ logs/
 
 # 报告文件
 report/
+reports/
 
 # Python编译文件
 __pycache__/

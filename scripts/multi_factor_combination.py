@@ -16,12 +16,14 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from datetime import datetime
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LinearRegression, Ridge
 from sklearn.neural_network import MLPRegressor
 from sklearn.model_selection import GridSearchCV, TimeSeriesSplit
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.preprocessing import StandardScaler
 from scipy.optimize import minimize
+from tqdm import tqdm
+import numpy as np
 
 # 添加项目根目录到Python路径
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -30,7 +32,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config.config import FACTOR_ANALYSIS_CONFIG, PLOT_CONFIG, MULTI_FACTOR_COMBINATION_CONFIG
 from config.logger_config import get_logger
 from utils.file_manager import save_file
-from factor_lib.utils import load_factor_data_by_date_range, load_stock_returns
+from factor_lib.utils import get_database_connection, load_stock_data
 from analyzer.factor_analyzer import FactorAnalyzer
 
 # 获取日志记录器
@@ -41,7 +43,7 @@ class MultiFactorCombination:
     多因子组合分析类
     """
     
-    def __init__(self, factors_list, start_date, end_date, forward_period=10, group_num=10):
+    def __init__(self, factors_list, start_date, end_date, forward_period=10, group_num=10, test_scope='ALL_A', allow_negative_weights=False):
         """
         初始化多因子组合分析器
         
@@ -51,17 +53,24 @@ class MultiFactorCombination:
             end_date (str): 结束日期，格式如"2023-12-31"
             forward_period (int): 目标收益率周期，默认为10个交易日
             group_num (int): 分组数量，默认为10组
+            test_scope (str): 测试范围，默认为'ALL_A'
+            allow_negative_weights (bool): 是否允许负权重，默认为False
         """
         self.factors_list = factors_list
         self.start_date = start_date
         self.end_date = end_date
         self.forward_period = forward_period
         self.group_num = group_num
+        self.test_scope = test_scope
+        self.allow_negative_weights = allow_negative_weights
         self.optimal_weights = None
         self.factor_data = None
         self.return_data = None
         self.combined_factor = None
         self.group_returns = None
+        self.data = None
+        self.conn = None
+        self.factor_analyzer = None
         
     def load_data(self):
         """
@@ -75,17 +84,36 @@ class MultiFactorCombination:
         logger.info(f"时间范围: {self.start_date} 至 {self.end_date}")
         
         try:
+            # 获取数据库连接
+            self.conn = get_database_connection()
+            if not self.conn:
+                logger.error("无法连接到数据库")
+                return False
+            
+            # 创建FactorAnalyzer实例
+            self.factor_analyzer = FactorAnalyzer(self.conn)
+            self.factor_analyzer.set_test_scope(self.test_scope)
+            
             # 加载所有因子数据
             factor_data_list = []
-            for factor_name in self.factors_list:
+            for factor_name in tqdm(self.factors_list, desc="加载因子数据", unit="因子", ascii=True, ncols=100, dynamic_ncols=False):
                 logger.info(f"加载因子: {factor_name}")
-                factor_data = load_factor_data_by_date_range(factor_name, self.start_date, self.end_date)
-                if factor_data.empty:
+                
+                # 使用FactorAnalyzer加载因子数据
+                if not self.factor_analyzer.load_factor_data(factor_name, self.start_date, self.end_date, normalize=False):
                     logger.warning(f"因子 {factor_name} 没有数据")
                     continue
                 
-                # 重命名因子列为因子名称
-                factor_data = factor_data.rename(columns={'value': factor_name})
+                # 转换列名以匹配原有代码
+                factor_data = self.factor_analyzer.factor_data.copy()
+                factor_data = factor_data.rename(columns={
+                    'ts_code': 'code',
+                    'trade_date': 'date',
+                    'factor_value': factor_name
+                })
+                
+                # 只保留需要的列
+                factor_data = factor_data[['code', 'date', factor_name]]
                 factor_data_list.append(factor_data)
             
             # 合并所有因子数据
@@ -100,13 +128,23 @@ class MultiFactorCombination:
             
             logger.info(f"因子数据加载完成，共 {len(self.factor_data)} 条记录")
             
-            # 加载收益率数据
-            logger.info(f"加载收益率数据，周期: {self.forward_period} 天")
-            self.return_data = load_stock_returns(self.start_date, self.end_date, self.forward_period)
+            # 加载收益率数据 - 调整结束日期以确保有足够数据计算远期收益
+            return_end_date = None
+            if self.end_date:
+                # 将结束日期转换为datetime并添加forward_period天
+                end_date_dt = pd.to_datetime(self.end_date)
+                return_end_date = (end_date_dt + pd.Timedelta(days=self.forward_period)).strftime('%Y-%m-%d')
             
-            if self.return_data.empty:
+            if not self.factor_analyzer.load_return_data(self.start_date, return_end_date, self.forward_period):
                 logger.error("没有加载到收益率数据")
                 return False
+            
+            # 转换收益率数据的列名
+            self.return_data = self.factor_analyzer.return_data.copy()
+            self.return_data = self.return_data.rename(columns={
+                'ts_code': 'code',
+                'trade_date': 'date'
+            })
             
             logger.info(f"收益率数据加载完成，共 {len(self.return_data)} 条记录")
             
@@ -131,9 +169,15 @@ class MultiFactorCombination:
             
         except Exception as e:
             logger.error(f"数据加载失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return False
+        finally:
+            # 关闭数据库连接
+            if hasattr(self, 'conn') and self.conn:
+                self.conn.close()
     
-    def train_model(self, model_type='gbdt', param_grid=None):
+    def train_model(self, model_type='MODEL_TYPE', param_grid=None):
         """
         使用机器学习模型训练因子组合
         
@@ -159,7 +203,8 @@ class MultiFactorCombination:
         
         # 选择模型
         if model_type == 'linear':
-            model = LinearRegression()
+            # 使用Ridge回归代替普通线性回归，支持alpha参数
+            model = Ridge()
         elif model_type == 'rf':
             model = RandomForestRegressor(random_state=42)
         elif model_type == 'gbdt':
@@ -172,7 +217,28 @@ class MultiFactorCombination:
         # 网格搜索
         if param_grid:
             logger.info("使用网格搜索优化模型参数...")
-            grid_search = GridSearchCV(model, param_grid, cv=tscv, scoring='neg_mean_squared_error', n_jobs=-1)
+            
+            # 使用tqdm显示交叉验证进度
+            # 计算总迭代次数
+            total_iter = 1
+            for param_list in param_grid.values():
+                total_iter *= len(param_list)
+            total_iter *= tscv.get_n_splits()
+            
+            # 创建带进度条的交叉验证迭代器
+            class TqdmCV:
+                def __init__(self, cv, desc="CV进度"):
+                    self.cv = cv
+                    self.desc = desc
+                
+                def __iter__(self):
+                    with tqdm(self.cv.split(X_scaled, y), desc=self.desc, total=self.cv.get_n_splits()) as pbar:
+                        for train_idx, test_idx in pbar:
+                            yield train_idx, test_idx
+                            pbar.update(1)
+            
+            # 使用自定义交叉验证迭代器
+            grid_search = GridSearchCV(model, param_grid, cv=TqdmCV(tscv, desc="交叉验证进度"), scoring='neg_mean_squared_error', n_jobs=-1)
             grid_search.fit(X_scaled, y)
             model = grid_search.best_estimator_
             logger.info(f"最佳参数: {grid_search.best_params_}")
@@ -190,19 +256,32 @@ class MultiFactorCombination:
         
         # 获取特征重要性或权重
         if model_type == 'linear':
-            # 线性回归的系数作为权重
+            # 线性回归的系数作为权重（支持正负权重）
             self.optimal_weights = dict(zip(self.factors_list, model.coef_))
         elif hasattr(model, 'feature_importances_'):
-            # 基于特征重要性的权重
+            # 基于特征重要性的权重（只能为正）
             importances = model.feature_importances_
             self.optimal_weights = dict(zip(self.factors_list, importances))
+            
+            if self.allow_negative_weights:
+                # 对权重进行中心化处理以产生负权重
+                mean_weight = sum(self.optimal_weights.values()) / len(self.optimal_weights)
+                self.optimal_weights = {k: v - mean_weight for k, v in self.optimal_weights.items()}
+            else:
+                # 归一化权重（仅对非负权重的模型）
+                total_weight = sum(self.optimal_weights.values())
+                self.optimal_weights = {k: v/total_weight for k, v in self.optimal_weights.items()}
         else:
             # MLP等没有直接特征重要性的模型，使用默认权重
-            self.optimal_weights = {factor: 1.0/len(self.factors_list) for factor in self.factors_list}
-        
-        # 归一化权重
-        total_weight = sum(self.optimal_weights.values())
-        self.optimal_weights = {k: v/total_weight for k, v in self.optimal_weights.items()}
+            if self.allow_negative_weights:
+                # 生成随机权重，包括正负
+                weights = np.random.randn(len(self.factors_list))
+                self.optimal_weights = dict(zip(self.factors_list, weights))
+                # 归一化权重
+                total_weight = sum(abs(self.optimal_weights.values()))
+                self.optimal_weights = {k: v/total_weight for k, v in self.optimal_weights.items()}
+            else:
+                self.optimal_weights = {factor: 1.0/len(self.factors_list) for factor in self.factors_list}
         
         logger.info(f"因子最优权重: {json.dumps(self.optimal_weights, indent=2)}")
         
@@ -292,12 +371,22 @@ class MultiFactorCombination:
                 sharpe_ratio = avg_return / std_return if std_return != 0 else 0
                 win_rate = (group_data['return'] > 0).mean()
                 
+                # 计算盈亏比
+                profitable_trades = group_data[group_data['return'] > 0]
+                losing_trades = group_data[group_data['return'] < 0]
+                
+                avg_profit = profitable_trades['return'].mean() if len(profitable_trades) > 0 else 0
+                avg_loss = abs(losing_trades['return'].mean()) if len(losing_trades) > 0 else 0
+                
+                profit_loss_ratio = avg_profit / avg_loss if avg_loss != 0 else float('inf')
+                
                 group_stats.append({
                     'group': group + 1,  # 分组从1开始编号
                     'average_return': avg_return,
                     'std_return': std_return,
                     'sharpe_ratio': sharpe_ratio,
                     'win_rate': win_rate,
+                    'profit_loss_ratio': profit_loss_ratio,
                     'total_days': len(group_data)
                 })
             
@@ -408,9 +497,10 @@ def main():
     factors_list = MULTI_FACTOR_COMBINATION_CONFIG['FACTORS_LIST']
     start_date = MULTI_FACTOR_COMBINATION_CONFIG['START_DATE']
     end_date = MULTI_FACTOR_COMBINATION_CONFIG['END_DATE']
-    forward_period = MULTI_FACTOR_COMBINATION_CONFIG['FORWARD_PERIOD']
+    forward_period = MULTI_FACTOR_COMBINATION_CONFIG['TARGET_RETURN_DAYS']
     group_num = MULTI_FACTOR_COMBINATION_CONFIG['GROUP_NUM']
     model_type = MULTI_FACTOR_COMBINATION_CONFIG['MODEL_TYPE']
+    test_scope = MULTI_FACTOR_COMBINATION_CONFIG['TEST_SCOPE']
     
     # 可以根据需要在运行时覆盖配置
     # factors_list = ['factor1', 'factor2', 'factor3']  # 自定义因子列表
@@ -424,7 +514,9 @@ def main():
         start_date=start_date,
         end_date=end_date,
         forward_period=forward_period,
-        group_num=group_num
+        group_num=group_num,
+        test_scope=test_scope,
+        allow_negative_weights=True  # 允许负权重
     )
     
     # 加载数据
@@ -435,11 +527,14 @@ def main():
     # 训练模型
     try:
         # 从配置文件读取模型参数网格
-        param_grid = MULTI_FACTOR_COMBINATION_CONFIG['MODEL_PARAMS']
+        all_params = MULTI_FACTOR_COMBINATION_CONFIG['MODEL_PARAMS']
+        param_grid = all_params.get(model_type, None)  # 获取当前模型类型对应的参数网格
         
         model = multi_factor.train_model(model_type=model_type, param_grid=param_grid)
     except Exception as e:
         logger.error(f"模型训练失败: {str(e)}")
+        import traceback
+        logger.error(f"异常堆栈: {traceback.format_exc()}")
         return
     
     # 计算组合因子
@@ -484,7 +579,7 @@ def main():
     
     logger.info(f"\n分组表现:")
     for group_stat in report['group_performance']['group_stats']:
-        logger.info(f"  组{group_stat['group']}: 平均收益率 {group_stat['average_return']:.6f}, 夏普比率 {group_stat['sharpe_ratio']:.4f}, 胜率 {group_stat['win_rate']:.4f}")
+        logger.info(f"  组{group_stat['group']}: 平均收益率 {group_stat['average_return']:.6f}, 夏普比率 {group_stat['sharpe_ratio']:.4f}, 胜率 {group_stat['win_rate']:.4f}, 盈亏比 {group_stat['profit_loss_ratio']:.4f}")
     
     if 'long_short' in report['group_performance']:
         ls = report['group_performance']['long_short']

@@ -809,7 +809,10 @@ class FactorAnalyzer:
             if not os.path.exists('report/figures'):
                 os.makedirs('report/figures')
             
-            plt.figure(figsize=(15, 12))
+            # 增加图表尺寸，根据因子数量动态调整
+            n_factors = len(correlation_matrix.columns)
+            figsize = (min(20, n_factors * 1.5), min(18, n_factors * 1.3))
+            plt.figure(figsize=figsize)
             
             # 绘制热力图
             mask = np.triu(np.ones_like(correlation_matrix, dtype=bool))  # 遮盖上三角
@@ -820,18 +823,21 @@ class FactorAnalyzer:
                 cmap='coolwarm',
                 center=0,
                 fmt='.2f',  # 显示两位小数
-                linewidths=0.5,
+                linewidths=0.7,
                 square=True,
-                cbar_kws={'shrink': 0.8},
-                annot_kws={'size': 6}  # 进一步减小标注文字大小
+                cbar_kws={'shrink': 0.8, 'aspect': 30},
+                annot_kws={'size': 4, 'fontweight': 'light'}  # 进一步减小标注文字大小
             )
             
             # 调整坐标轴刻度字体大小和旋转角度
-            plt.xticks(rotation=45, ha='right', fontsize=7)  # 旋转x轴标签
-            plt.yticks(rotation=0, fontsize=7)  # 调整y轴标签字体大小
+            plt.xticks(rotation=60, ha='right', fontsize=6, rotation_mode='anchor')  # 旋转x轴标签，增加倾斜角度
+            plt.yticks(rotation=0, fontsize=6)  # 调整y轴标签字体大小
             
             # 设置图表标题和标签
-            plt.title('因子间相关系数矩阵', fontsize=14)  # 减小标题字体大小
+            plt.title('因子间相关系数矩阵', fontsize=12, pad=20)  # 减小标题字体大小
+            
+            # 调整布局，增加内边距
+            plt.subplots_adjust(left=0.15, right=0.95, top=0.9, bottom=0.15)
             plt.tight_layout()
             
             # 保存图片
@@ -851,15 +857,65 @@ def get_all_available_factors(conn):
     获取所有可用的因子名称
     
     参数:
-        conn: 数据库连接对象
+        conn: 数据库连接对象（保留参数以保持兼容性）
         
     返回:
         list: 因子名称列表
     """
     try:
-        query = "SELECT DISTINCT factor_name FROM factors"
-        df = pd.read_sql_query(query, conn)
-        return df['factor_name'].tolist()
+        # 添加项目根目录到Python路径
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if project_root not in sys.path:
+            sys.path.append(project_root)
+        
+        # 导入get_all_factor_classes函数
+        import factor_lib
+        
+        # 获取因子类
+        factor_classes = factor_lib.get_all_factor_classes()
+        
+        # 定义窗口参数配置（与calculate_factors.py保持一致）
+        window_params = {
+            'MomentumFactor': [10, 50, 100],
+            'RSIFactor': [24],  # 只保留rsi_24
+            'WilliamsRFactor': [10, 20],
+            'StochasticFactor': [14, 20],
+            'RateOfChangeFactor': [5, 10, 20],
+            'BollingerBandsFactor': [20],
+            'AverageTrueRangeFactor': [14, 20],
+            'VolatilityFactor': [10, 20, 30],
+            'DownsideDeviationFactor': [20, 30],
+            'UlcerIndexFactor': [14, 20],
+            'HistoricalVolatilityFactor': [20, 30],
+            'ParkinsonVolatilityFactor': [10, 20]
+        }
+        
+        # 生成因子名称列表
+        available_factors = []
+        
+        for factor_class in factor_classes:
+            class_name = factor_class.__name__
+            
+            # 为需要窗口参数的因子生成多个实例名称
+            if class_name in window_params:
+                for window in window_params[class_name]:
+                    try:
+                        factor = factor_class(window=window)
+                        available_factors.append(factor.name)
+                    except Exception as e:
+                        logger.warning(f"无法创建因子 {class_name}(window={window}): {e}")
+            else:
+                # 无参数或默认参数的因子
+                try:
+                    factor = factor_class()
+                    available_factors.append(factor.name)
+                except Exception as e:
+                    logger.warning(f"无法创建因子 {class_name}: {e}")
+        
+        # 去重并排序
+        available_factors = sorted(list(set(available_factors)))
+        
+        return available_factors
     except Exception as e:
         logger.error(f"获取因子列表失败: {str(e)}")
         return []
@@ -933,8 +989,19 @@ def main():
             logger.info("-" * 90)
             
             for result in results_sorted:
-                ic_abs = abs(result['mean_rank_ic'])
-                logger.info(f"{result['factor_name']:<25} {result['mean_rank_ic']:<15.4f} {ic_abs:<10.4f} {result['ir']:<10.4f} {result['positive_ratio']:<15.2%} {result['total_days']:<10}")
+                # 安全地格式化输出，处理可能的None或NaN值
+                mean_ic = result['mean_rank_ic']
+                ic_abs = abs(mean_ic) if mean_ic is not None else None
+                ir = result['ir']
+                positive_ratio = result['positive_ratio']
+                
+                # 使用条件判断格式化数值
+                mean_ic_str = f"{mean_ic:<15.4f}" if mean_ic is not None else f"{'nan':<15}"
+                ic_abs_str = f"{ic_abs:<10.4f}" if ic_abs is not None else f"{'nan':<10}"
+                ir_str = f"{ir:<10.4f}" if ir is not None else f"{'nan':<10}"
+                positive_ratio_str = f"{positive_ratio:<15.2%}" if positive_ratio is not None else f"{'nan':<15}"
+                
+                logger.info(f"{result['factor_name']:<25} {mean_ic_str} {ic_abs_str} {ir_str} {positive_ratio_str} {result['total_days']:<10}")
             
             logger.info("-" * 90)
             
@@ -993,7 +1060,6 @@ def main():
             logger.info(f"分析报告已保存到: {report_path}")
             
             # 保存分析结果到CSV文件（方便查看）
-            import pandas as pd
             
             # 准备CSV数据
             csv_data = []
@@ -1037,8 +1103,19 @@ def main():
                 f.write("-" * 90 + "\n")
                 
                 for result in results_sorted:
-                    ic_abs = abs(result['mean_rank_ic'])
-                    f.write(f"{result['factor_name']:<25} {result['mean_rank_ic']:<15.4f} {ic_abs:<10.4f} {result['ir']:<10.4f} {result['positive_ratio']:<15.2%} {result['total_days']:<10}\n")
+                    # 安全地格式化输出，处理可能的None或NaN值
+                    mean_ic = result['mean_rank_ic']
+                    ic_abs = abs(mean_ic) if mean_ic is not None else None
+                    ir = result['ir']
+                    positive_ratio = result['positive_ratio']
+                    
+                    # 使用条件判断格式化数值
+                    mean_ic_str = f"{mean_ic:<15.4f}" if mean_ic is not None else f"{'nan':<15}"
+                    ic_abs_str = f"{ic_abs:<10.4f}" if ic_abs is not None else f"{'nan':<10}"
+                    ir_str = f"{ir:<10.4f}" if ir is not None else f"{'nan':<10}"
+                    positive_ratio_str = f"{positive_ratio:<15.2%}" if positive_ratio is not None else f"{'nan':<15}"
+                    
+                    f.write(f"{result['factor_name']:<25} {mean_ic_str} {ic_abs_str} {ir_str} {positive_ratio_str} {result['total_days']:<10}\n")
                 
                 f.write("-" * 90 + "\n\n")
                 
@@ -1049,14 +1126,25 @@ def main():
                 for result in results_sorted:
                     f.write(f"因子名称: {result['factor_name']}\n")
                     f.write("-" * 50 + "\n")
-                    f.write(f"平均Rank IC: {result['mean_rank_ic']:.6f}\n")
-                    f.write(f"IC绝对值: {abs(result['mean_rank_ic']):.6f}\n")
-                    f.write(f"信息比率(IR): {result['ir']:.6f}\n")
-                    f.write(f"正相关比例: {result['positive_ratio']:.2%}\n")
-                    f.write(f"负相关比例: {(1 - result['positive_ratio']):.2%}\n")
+                    
+                    mean_ic = result['mean_rank_ic']
+                    f.write(f"平均Rank IC: {'nan' if mean_ic is None else f'{mean_ic:.6f}'}\n")
+                    
+                    ic_abs = abs(mean_ic) if mean_ic is not None else None
+                    f.write(f"IC绝对值: {'nan' if ic_abs is None else f'{ic_abs:.6f}'}\n")
+                    
+                    ir = result['ir']
+                    f.write(f"信息比率(IR): {'nan' if ir is None else f'{ir:.6f}'}\n")
+                    
+                    positive_ratio = result['positive_ratio']
+                    f.write(f"正相关比例: {'nan' if positive_ratio is None else f'{positive_ratio:.2%}'}\n")
+                    f.write(f"负相关比例: {'nan' if positive_ratio is None else f'{(1 - positive_ratio):.2%}'}\n")
+                    
                     f.write(f"有效天数: {result['total_days']}\n")
                     f.write(f"总分析天数: {result['total_days']}\n")
-                    f.write(f"IC标准差: {result['std_rank_ic']:.6f}\n")
+                    
+                    std_ic = result['std_rank_ic']
+                    f.write(f"IC标准差: {'nan' if std_ic is None else f'{std_ic:.6f}'}\n")
                     
                     # 提取Rank IC值列表
                     rank_ics = result['rank_ic_data']['rank_ic'].dropna().tolist()

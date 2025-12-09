@@ -1356,11 +1356,11 @@ class RectanglePatternFactor(Factor):
             lows = window_prices['low']
             
             # 检查高点是否在同一水平线上（标准差很小）
-            if highs.std() > highs.mean() * 0.02:  # 高点的标准差小于2%
+            if highs.std() > highs.mean() * 0.02:  # 高点的标准差大于2%，不符合矩形形态
                 return False
             
             # 检查低点是否在同一水平线上（标准差很小）
-            if lows.std() > lows.mean() * 0.02:  # 低点的标准差小于2%
+            if lows.std() > lows.mean() * 0.02:  # 低点的标准差大于2%，不符合矩形形态
                 return False
             
             # 检查矩形是否有足够的高度（不是窄幅波动）
@@ -1368,9 +1368,9 @@ class RectanglePatternFactor(Factor):
             if range_percentage < 0.05:  # 矩形高度至少5%
                 return False
             
-            # 检查价格是否突破矩形边界
+            # 检查价格是否在矩形区间内
             current_close = prices['close'].iloc[-1]
-            if current_close > highs.max() or current_close < lows.min():
+            if lows.max() <= current_close <= highs.min():
                 return True
             
             return False
@@ -1439,53 +1439,7 @@ class GapPatternFactor(Factor):
         return df
 
 
-class DojiPatternFactor(Factor):
-    """
-    十字星形态因子
-    
-    定义：股票价格的开盘价和收盘价非常接近，形成十字星，通常预示着趋势反转。
-    计算方法：检查开盘价和收盘价的差距是否小于最高价和最低价差距的10%。
-    说明：值为1表示形成十字星形态，0表示未形成。
-    """
-    def __init__(self):
-        """
-        初始化十字星形态因子
-        
-        因子名称: 'doji_pattern'
-        """
-        super().__init__(name='doji_pattern')
-    
-    def calculate(self, data):
-        """
-        计算十字星形态因子
-        
-        参数:
-            data: 包含股票交易数据的DataFrame，必须包含'ts_code'（股票代码）、'trade_date'（交易日期）、'open'（开盘价）、'high'（最高价）、'low'（最低价）和'close'（收盘价）列
-        
-        返回:
-            pandas.DataFrame: 包含'ts_code'、'trade_date'和十字星形态因子值列的DataFrame
-        """
-        if data is None or data.empty:
-            return None
-        
-        df = data[['ts_code', 'trade_date', 'open', 'high', 'low', 'close']].copy()
-        df = df.sort_values(['ts_code', 'trade_date'])
-        
-        # 计算实体大小（开盘价和收盘价的差距）
-        df['body_size'] = abs(df['close'] - df['open'])
-        
-        # 计算上下影线总长度（最高价和最低价的差距）
-        df['total_length'] = df['high'] - df['low']
-        
-        # 判断十字星形态
-        # 实体大小小于总长度的10%，且有一定的上下影线
-        df[self.name] = 0
-        df.loc[(df['body_size'] < df['total_length'] * 0.1) & 
-               (df['total_length'] > df['open'] * 0.01), self.name] = 1
-        
-        df = df[['ts_code', 'trade_date', self.name]]
-        self.data = df
-        return df
+
 
 
 class HammerPatternFactor(Factor):

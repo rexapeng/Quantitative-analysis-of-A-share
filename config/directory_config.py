@@ -97,5 +97,6 @@ def create_all_directories():
         print(f"已创建目录: {dir_path}")
 
 # 初始化函数
+# 只有当直接运行该文件时才创建目录，避免被导入时自动执行
 if __name__ == "__main__":
     create_all_directories()

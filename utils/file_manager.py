@@ -136,10 +136,13 @@ class FileManager:
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(str(content))
 
-# 创建全局文件管理器实例
-file_manager = FileManager()
+# 全局文件管理器实例（延迟初始化）
+file_manager = None
 
 # 便捷函数
 def save_file(content, file_type, file_name, with_datetime=False, **kwargs):
     """便捷函数，调用全局文件管理器的save_file方法"""
+    global file_manager
+    if file_manager is None:
+        file_manager = FileManager()
     return file_manager.save_file(content, file_type, file_name, with_datetime, **kwargs)

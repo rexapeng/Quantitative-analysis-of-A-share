@@ -4,55 +4,47 @@ from .base import Factor, FactorManager
 
 # 成交量类因子
 from .volume_factors import (
-    VolumeFactor, AmountFactor, VolumeChangeRateFactor, AmountChangeRateFactor,
-    VolumeRankFactor, VolumeMeanFactor, VolumeStdFactor, VolumeToMeanFactor,
+    VolumeFactor, AmountFactor, AmountChangeRateFactor,
+    VolumeMeanFactor, VolumeToMeanFactor,
     VolumeAmplitudeFactor, VolumeAccumulationFactor
 )
 
 # 趋势类因子
 from .trend_factors import (
-    MA5Factor, MA10Factor, MA20Factor, MA50Factor, MA100Factor,
-    EMA5Factor, EMA12Factor, EMA20Factor, EMA26Factor, EMA50Factor, EMA100Factor, EMA200Factor,
-    SMA60Factor, SMA120Factor, SMA240Factor,
-    MACDFactor, MACD_SignalFactor, MACD_HistogramFactor, MACD_CrossoverFactor,
-    RSI3Factor, RSI7Factor, RSI14Factor, RSI21Factor, RSI28Factor,
-    ADXFactor, ADX20Factor, ADX28Factor,
+    MACDFactor, MACD_SignalFactor,
+    ADXFactor,
     ATRFactor, ATR7Factor, ATR20Factor,
-    BollingerBandFactor, ParabolicSARFactor,
-    CCI7Factor, CCI14Factor, CCI21Factor,
+    CCI7Factor, CCI14Factor,
     DMAFactor
 )
 
 # 波动性类因子
 from .volatility_factors import (
-    BollingerBandsFactor, TrueRangeFactor, AverageTrueRangeFactor, 
-    VolatilityFactor, DownsideDeviationFactor, UlcerIndexFactor, 
-    HistoricalVolatilityFactor, ParkinsonVolatilityFactor
+    BollingerBandsFactor, AverageTrueRangeFactor, 
+    VolatilityFactor, HistoricalVolatilityFactor, ParkinsonVolatilityFactor
 )
 
 # 动量类因子
 from .momentum_factors import (
-    MomentumFactor, RSIFactor, MACDFactor, WilliamsRFactor, StochasticFactor,
-    RateOfChangeFactor
+    MomentumFactor, RSIFactor, MACDFactor, RateOfChangeFactor
 )
 
 # 形态类因子
 from .pattern_factors import (
-    DoubleBottomFactor, DoubleTopFactor,
-    HeadShoulderBottomFactor, HeadShoulderTopFactor,
-    TripleBottomFactor, TripleTopFactor,
-    RoundBottomFactor, RoundTopFactor,
-    VBottomFactor, VTopFactor,
-    AscendingTriangleFactor, DescendingTriangleFactor,
-    SymmetricalTriangleFactor, AscendingWedgeFactor,
-    DescendingWedgeFactor, RectanglePatternFactor,
-    GapPatternFactor, DojiPatternFactor,
+    DoubleBottomFactor,
+    HeadShoulderBottomFactor,
+    TripleBottomFactor,
+    RoundBottomFactor,
+    VBottomFactor,
+    AscendingTriangleFactor, SymmetricalTriangleFactor,
+    RectanglePatternFactor,
+    GapPatternFactor,
     HammerPatternFactor
 )
 
 # 自定义因子
 from .custom_factor_template import (
-    CustomFactorTemplate, CustomMomentumFactor, CustomVolatilityFactor, CustomVolumeFactor,
+    CustomMomentumFactor,
     KDJ_J_Factor, MACD_DIFF_Factor
 )
 
@@ -69,46 +61,36 @@ __all__ = [
     
     
     # 成交量类因子
-    'VolumeFactor', 'AmountFactor', 'VolumeChangeRateFactor', 'AmountChangeRateFactor',
-    'VolumeRankFactor', 'VolumeMeanFactor', 'VolumeStdFactor', 'VolumeToMeanFactor',
-    'VolumeAmplitudeFactor', 'VolumeAccumulationFactor',
+    'VolumeFactor', 'AmountFactor'
     
     # 趋势类因子
-    'MA5Factor', 'MA10Factor', 'MA20Factor', 'MA50Factor', 'MA100Factor',
-    'EMA5Factor', 'EMA12Factor', 'EMA20Factor', 'EMA26Factor', 'EMA50Factor', 'EMA100Factor', 'EMA200Factor',
-    'SMA60Factor', 'SMA120Factor', 'SMA240Factor',
-    'MACDFactor', 'MACD_SignalFactor', 'MACD_HistogramFactor', 'MACD_CrossoverFactor',
-    'RSI3Factor', 'RSI7Factor', 'RSI14Factor', 'RSI21Factor', 'RSI28Factor',
-    'ADXFactor', 'ADX20Factor', 'ADX28Factor',
+    'MACDFactor', 'MACD_SignalFactor',
+    'ADXFactor',
     'ATRFactor', 'ATR7Factor', 'ATR20Factor',
-    'BollingerBandFactor', 'ParabolicSARFactor',
-    'CCI7Factor', 'CCI14Factor', 'CCI21Factor',
+    'CCI7Factor', 'CCI14Factor',
     'DMAFactor',
     
     # 波动性类因子
-    'BollingerBandsFactor', 'TrueRangeFactor', 'AverageTrueRangeFactor', 
-    'VolatilityFactor', 'DownsideDeviationFactor', 'UlcerIndexFactor', 
-    'HistoricalVolatilityFactor', 'ParkinsonVolatilityFactor',
+    'BollingerBandsFactor', 'AverageTrueRangeFactor', 
+    'VolatilityFactor', 'HistoricalVolatilityFactor', 'ParkinsonVolatilityFactor',
     
     # 动量类因子
-    'MomentumFactor', 'RSIFactor', 'MACDFactor', 'WilliamsRFactor', 'StochasticFactor',
-    'RateOfChangeFactor',
+    'MomentumFactor', 'RSIFactor', 'MACDFactor', 'RateOfChangeFactor',
     
     # 形态类因子
-    'DoubleBottomPatternFactor', 'DoubleTopPatternFactor',
-    'HeadAndShouldersBottomPatternFactor', 'HeadAndShouldersTopPatternFactor',
-    'TripleBottomPatternFactor', 'TripleTopPatternFactor',
-    'CupAndHandlePatternFactor', 'InverseCupAndHandlePatternFactor',
-    'VBottomPatternFactor', 'VTopPatternFactor',
-    'AscendingTrianglePatternFactor', 'DescendingTrianglePatternFactor',
-    'SymmetricalTrianglePatternFactor', 'AscendingWedgePatternFactor',
-    'DescendingWedgePatternFactor', 'RectanglePatternFactor',
-    'GapPatternFactor', 'DojiPatternFactor',
-    'HammerPatternFactor', 'ShootingStarPatternFactor',
-    'MorningStarPatternFactor', 'EveningStarPatternFactor',
+    'DoubleBottomPatternFactor',
+    'HeadAndShouldersBottomPatternFactor',
+    'TripleBottomPatternFactor',
+    'CupAndHandlePatternFactor',
+    'VBottomPatternFactor',
+    'AscendingTrianglePatternFactor', 'SymmetricalTrianglePatternFactor',
+    'RectanglePatternFactor',
+    'GapPatternFactor',
+    'HammerPatternFactor',
     
-    # 自定义因子
-    'CustomFactorTemplate', 'CustomMomentumFactor', 'CustomVolatilityFactor', 'CustomVolumeFactor', 'KDJ_J_Factor', 'MACD_DIFF_Factor',
+    # 自定义类因子
+    'CustomMomentumFactor',
+    'KDJ_J_Factor', 'MACD_DIFF_Factor',
     
     # 工具函数
     'get_database_connection', 'load_stock_data', 'load_stock_list', 'batch_process',
@@ -149,47 +131,42 @@ def get_factor_classes_by_category():
     """
     # 定义因子类别和对应的类名
     categories = {
+
+
+
         'volume': [
-            'VolumeFactor', 'AmountFactor', 'VolumeChangeRateFactor', 'AmountChangeRateFactor',
-            'VolumeRankFactor', 'VolumeMeanFactor', 'VolumeStdFactor', 'VolumeToMeanFactor',
+            'VolumeFactor', 'AmountFactor', 'AmountChangeRateFactor',
+            'VolumeMeanFactor', 'VolumeToMeanFactor',
             'VolumeAmplitudeFactor', 'VolumeAccumulationFactor'
         ],
         'volatility': [
             'BollingerBandsFactor', 'TrueRangeFactor', 'AverageTrueRangeFactor', 
-            'VolatilityFactor', 'DownsideDeviationFactor', 'UlcerIndexFactor', 
-            'HistoricalVolatilityFactor', 'ParkinsonVolatilityFactor'
+            'VolatilityFactor', 'HistoricalVolatilityFactor', 'ParkinsonVolatilityFactor'
         ],
         'momentum': [
-            'MomentumFactor', 'RSIFactor', 'MACDFactor', 'WilliamsRFactor', 'StochasticFactor',
-            'RateOfChangeFactor'
+            'MomentumFactor', 'RSIFactor', 'MACDFactor', 'RateOfChangeFactor'
         ],
         'trend': [
-            'MA5Factor', 'MA10Factor', 'MA20Factor', 'MA50Factor', 'MA100Factor',
-            'EMA5Factor', 'EMA12Factor', 'EMA20Factor', 'EMA26Factor', 'EMA50Factor', 'EMA100Factor', 'EMA200Factor',
-            'SMA60Factor', 'SMA120Factor', 'SMA240Factor',
-            'MACD_SignalFactor', 'MACD_HistogramFactor', 'MACD_CrossoverFactor',
-            'RSI3Factor', 'RSI7Factor', 'RSI14Factor', 'RSI21Factor', 'RSI28Factor',
-            'ADXFactor', 'ADX20Factor', 'ADX28Factor',
+            'MACDFactor', 'MACD_SignalFactor',
+            'RSI14Factor', 'RSI21Factor', 'RSI28Factor',
+            'ADXFactor',
             'ATRFactor', 'ATR7Factor', 'ATR20Factor',
-            'BollingerBandFactor', 'ParabolicSARFactor',
-            'CCI7Factor', 'CCI14Factor', 'CCI21Factor',
+            'CCI7Factor', 'CCI14Factor',
             'DMAFactor'
         ],
         'pattern': [
-            'DoubleBottomPatternFactor', 'DoubleTopPatternFactor',
-            'HeadAndShouldersBottomPatternFactor', 'HeadAndShouldersTopPatternFactor',
-            'TripleBottomPatternFactor', 'TripleTopPatternFactor',
-            'CupAndHandlePatternFactor', 'InverseCupAndHandlePatternFactor',
-            'VBottomPatternFactor', 'VTopPatternFactor',
-            'AscendingTrianglePatternFactor', 'DescendingTrianglePatternFactor',
-            'SymmetricalTrianglePatternFactor', 'AscendingWedgePatternFactor',
-            'DescendingWedgePatternFactor', 'RectanglePatternFactor',
-            'GapPatternFactor', 'DojiPatternFactor',
-            'HammerPatternFactor', 'ShootingStarPatternFactor',
-            'MorningStarPatternFactor', 'EveningStarPatternFactor'
+            'DoubleBottomPatternFactor',
+            'HeadAndShouldersBottomPatternFactor',
+            'TripleBottomPatternFactor',
+            'CupAndHandlePatternFactor',
+            'VBottomPatternFactor',
+            'AscendingTrianglePatternFactor', 'SymmetricalTrianglePatternFactor',
+            'RectanglePatternFactor',
+            'GapPatternFactor',
+            'HammerPatternFactor'
         ],
         'custom': [
-            'CustomFactorTemplate', 'CustomMomentumFactor', 'CustomVolatilityFactor', 'CustomVolumeFactor',
+            'CustomMomentumFactor',
             'KDJ_J_Factor', 'MACD_DIFF_Factor'
         ]
     }

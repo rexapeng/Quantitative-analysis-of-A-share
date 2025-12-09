@@ -71,47 +71,7 @@ class AmountFactor(Factor):
         return df
 
 
-class VolumeChangeRateFactor(Factor):
-    """
-    成交量变化率因子
-    
-    定义：衡量当前成交量相对于过去某一交易日的变化百分比。
-    计算方法：(当前成交量 - 过去window个交易日的成交量) / 过去window个交易日的成交量
-    说明：该因子大于0表示成交量增加，小于0表示成交量减少，绝对值越大表示成交量变化越剧烈。
-    """
-    def __init__(self, window=1):
-        """
-        初始化成交量变化率因子
-        
-        参数:
-            window: 比较的时间窗口大小，默认为1个交易日（即与前一交易日比较）
-        
-        因子名称: f'vol_change_{window}'
-        """
-        super().__init__(name=f'vol_change_{window}')
-        self.window = window
-    
-    def calculate(self, data):
-        """
-        计算成交量变化率因子
-        
-        参数:
-            data: 包含股票交易数据的DataFrame，必须包含'ts_code'（股票代码）、'trade_date'（交易日期）和'vol'（成交量）列
-        
-        返回:
-            pandas.DataFrame: 包含'ts_code'、'trade_date'和成交量变化率因子值列的DataFrame
-        """
-        if data is None or data.empty:
-            return None
-        
-        df = data[['ts_code', 'trade_date', 'vol']].copy()
-        df = df.sort_values(['ts_code', 'trade_date'])
-        
-        # 计算成交量变化率
-        df[self.name] = df.groupby('ts_code')['vol'].pct_change(periods=self.window)
-        df = df[['ts_code', 'trade_date', self.name]]
-        self.data = df
-        return df
+
 
 
 class AmountChangeRateFactor(Factor):
@@ -157,50 +117,7 @@ class AmountChangeRateFactor(Factor):
         return df
 
 
-class VolumeRankFactor(Factor):
-    """
-    成交量排名因子
-    
-    定义：衡量当前成交量在过去一段时间窗口内的相对位置，反映成交量的短期表现。
-    计算方法：当前成交量在过去window个交易日中的排名百分比
-    说明：取值范围为0到1，接近1表示成交量处于近期高位，接近0表示成交量处于近期低位。
-    """
-    def __init__(self, window=20):
-        """
-        初始化成交量排名因子
-        
-        参数:
-            window: 计算排名的时间窗口大小，默认为20个交易日
-        
-        因子名称: f'vol_rank_{window}'
-        """
-        super().__init__(name=f'vol_rank_{window}')
-        self.window = window
-    
-    def calculate(self, data):
-        """
-        计算成交量排名因子
-        
-        参数:
-            data: 包含股票交易数据的DataFrame，必须包含'ts_code'（股票代码）、'trade_date'（交易日期）和'vol'（成交量）列
-        
-        返回:
-            pandas.DataFrame: 包含'ts_code'、'trade_date'和成交量排名因子值列的DataFrame
-        """
-        if data is None or data.empty:
-            return None
-        
-        df = data[['ts_code', 'trade_date', 'vol']].copy()
-        df = df.sort_values(['ts_code', 'trade_date'])
-        
-        # 计算成交量排名
-        df[self.name] = df.groupby('ts_code')['vol'].transform(
-            lambda x: x.rolling(window=self.window).apply(lambda y: y.rank(pct=True).iloc[-1])
-        )
-        
-        df = df[['ts_code', 'trade_date', self.name]]
-        self.data = df
-        return df
+
 
 
 class VolumeMeanFactor(Factor):
@@ -249,50 +166,7 @@ class VolumeMeanFactor(Factor):
         return df
 
 
-class VolumeStdFactor(Factor):
-    """
-    成交量标准差因子
-    
-    定义：衡量过去一段时间窗口内成交量的波动程度。
-    计算方法：过去window个交易日成交量的标准差
-    说明：该因子值越大表示成交量波动越剧烈，市场情绪可能越不稳定；值越小表示成交量越稳定。
-    """
-    def __init__(self, window=20):
-        """
-        初始化成交量标准差因子
-        
-        参数:
-            window: 计算标准差的时间窗口大小，默认为20个交易日
-        
-        因子名称: f'vol_std_{window}'
-        """
-        super().__init__(name=f'vol_std_{window}')
-        self.window = window
-    
-    def calculate(self, data):
-        """
-        计算成交量标准差因子
-        
-        参数:
-            data: 包含股票交易数据的DataFrame，必须包含'ts_code'（股票代码）、'trade_date'（交易日期）和'vol'（成交量）列
-        
-        返回:
-            pandas.DataFrame: 包含'ts_code'、'trade_date'和成交量标准差因子值列的DataFrame
-        """
-        if data is None or data.empty:
-            return None
-        
-        df = data[['ts_code', 'trade_date', 'vol']].copy()
-        df = df.sort_values(['ts_code', 'trade_date'])
-        
-        # 计算成交量标准差
-        df[self.name] = df.groupby('ts_code')['vol'].transform(
-            lambda x: x.rolling(window=self.window).std()
-        )
-        
-        df = df[['ts_code', 'trade_date', self.name]]
-        self.data = df
-        return df
+
 
 
 class VolumeToMeanFactor(Factor):

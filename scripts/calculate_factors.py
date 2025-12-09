@@ -51,15 +51,8 @@ def get_all_factors():
     
     # 为不同类型的因子提供不同的窗口参数
     window_params = {
-        'VolumeChangeRateFactor': [5, 10, 20],
-        'AmountChangeRateFactor': [5, 10, 20],
-        'VolumeRankFactor': [10, 20, 30],
-        'VolumeMeanFactor': [10, 20, 30],
-        'VolumeStdFactor': [10, 20, 30],
-        'VolumeToMeanFactor': [10, 20, 30],
-        'VolumeAmplitudeFactor': [10, 20, 30],
-        'MomentumFactor': [5, 10, 20, 30],
-        'RSIFactor': [6, 14, 24],
+        'MomentumFactor': [10, 50, 100],
+        'RSIFactor': [24],  # 只保留rsi_24
         'WilliamsRFactor': [10, 20],
         'StochasticFactor': [14, 20],
         'RateOfChangeFactor': [5, 10, 20],
