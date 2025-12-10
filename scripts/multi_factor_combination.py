@@ -258,6 +258,9 @@ class MultiFactorCombination:
         if model_type == 'linear':
             # 线性回归的系数作为权重（支持正负权重）
             self.optimal_weights = dict(zip(self.factors_list, model.coef_))
+            # 归一化权重，确保总和为1
+            total_weight = sum(self.optimal_weights.values())
+            self.optimal_weights = {k: v/total_weight for k, v in self.optimal_weights.items()}
         elif hasattr(model, 'feature_importances_'):
             # 基于特征重要性的权重（只能为正）
             importances = model.feature_importances_
@@ -267,6 +270,9 @@ class MultiFactorCombination:
                 # 对权重进行中心化处理以产生负权重
                 mean_weight = sum(self.optimal_weights.values()) / len(self.optimal_weights)
                 self.optimal_weights = {k: v - mean_weight for k, v in self.optimal_weights.items()}
+                # 归一化权重，确保总和为1
+                total_weight = sum(self.optimal_weights.values())
+                self.optimal_weights = {k: v/total_weight for k, v in self.optimal_weights.items()}
             else:
                 # 归一化权重（仅对非负权重的模型）
                 total_weight = sum(self.optimal_weights.values())
@@ -277,8 +283,8 @@ class MultiFactorCombination:
                 # 生成随机权重，包括正负
                 weights = np.random.randn(len(self.factors_list))
                 self.optimal_weights = dict(zip(self.factors_list, weights))
-                # 归一化权重
-                total_weight = sum(abs(self.optimal_weights.values()))
+                # 归一化权重，确保总和为1
+                total_weight = sum(self.optimal_weights.values())
                 self.optimal_weights = {k: v/total_weight for k, v in self.optimal_weights.items()}
             else:
                 self.optimal_weights = {factor: 1.0/len(self.factors_list) for factor in self.factors_list}
